@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bomb Defusal Manual - Keep Talking and Nobody Explodes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f4f1ea;
+      color: #1c1917;
+      font-family: 'Courier Prime', Courier, monospace;
+      padding: 40px 20px;
+      line-height: 1.5;
+    }
+
+    .manual-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 50px 60px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      border: 1px solid #e4dfd5;
+      position: relative;
+      background-image: radial-gradient(rgba(0,0,0,0.02) 1px, transparent 0);
+      background-size: 24px 24px;
+    }
+
+    /* TOP SECRET stamp style */
+    .stamp {
+      position: absolute;
+      top: 40px;
+      right: 60px;
+      border: 3px double #b91c1c;
+      color: #b91c1c;
+      font-family: 'Special Elite', cursive;
+      font-size: 18px;
+      padding: 6px 16px;
+      transform: rotate(8deg);
+      opacity: 0.85;
+      letter-spacing: 2px;
+      font-weight: bold;
+    }
+
+    h1 {
+      font-family: 'Special Elite', cursive;
+      font-size: 32px;
+      text-align: center;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 40px;
+      border-bottom: 2px solid #1c1917;
+      padding-bottom: 15px;
+      font-weight: bold;
+    }
+
+    h2 {
+      font-family: 'Special Elite', cursive;
+      font-size: 20px;
+      border-bottom: 1px dashed #1c1917;
+      padding-bottom: 6px;
+      margin-top: 40px;
+      margin-bottom: 15px;
+      color: #b91c1c;
+      text-transform: uppercase;
+    }
+
+    p {
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+
+    ul, ol {
+      margin-left: 24px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 13px;
+    }
+
+    th, td {
+      border: 1px solid #1c1917;
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background-color: #f3f4f6;
+      font-weight: bold;
+    }
+
+    .important-box {
+      border: 2px solid #b91c1c;
+      padding: 15px 20px;
+      background-color: #fef2f2;
+      margin-bottom: 25px;
+      font-size: 13px;
+    }
+
+    .important-box strong {
+      color: #b91c1c;
+      font-family: 'Special Elite', cursive;
+      font-size: 15px;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .keypad-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      border: 1px solid #1c1917;
+      padding: 20px;
+      width: 180px;
+      margin: 20px auto;
+      background: #fafafa;
+    }
+
+    .keypad-symbol {
+      font-size: 32px;
+      font-family: Arial, sans-serif;
+      width: 50px;
+      height: 50px;
+      border: 1px solid #6b7280;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #fff;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .arrow-down {
+      font-size: 18px;
+      color: #6b7280;
+    }
+
+    .back-btn {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #1c1917;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 13px;
+    }
+
+    .back-btn:hover {
+      text-decoration: underline;
+    }
+
+    @media print {
+      body {
+        background-color: #fff;
+        padding: 0;
+      }
+      .manual-container {
+        box-shadow: none;
+        border: none;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="manual-container">
+    <div class="stamp">TOP SECRET</div>
+    
+    <h1>BOMB DEFUSAL MANUAL</h1>
+    <div class="subtitle">Section 1: Module Defusal Instructions</div>
+
+    <div class="important-box">
+      <strong>WARNING:</strong>
+      Do not look at the bomb. You are the Expert. The Defuser is alone with the ticking bomb. Provide instructions clearly and calmly.
+    </div>
+
+    <!-- MODULE 1: WIRES -->
+    <h2>Module 1: Wires (สายไฟ)</h2>
+    <p>A wire module consists of 3 to 5 parallel wires. Only one wire must be cut to safely defuse the module. Wires are counted from top to bottom (1 is the top wire).</p>
+    
+    <h3>3 Wires:</h3>
+    <ul>
+      <li>If there are no <strong>Red</strong> wires, cut the <strong>second</strong> wire.</li>
+      <li>Otherwise, if the last wire is <strong>White</strong>, cut the <strong>last</strong> wire.</li>
+      <li>Otherwise, if there is more than one <strong>Blue</strong> wire, cut the <strong>last Blue</strong> wire.</li>
+      <li>Otherwise, cut the <strong>last</strong> wire.</li>
+    </ul>
+
+    <h3>4 Wires:</h3>
+    <ul>
+      <li>If there is more than one <strong>Red</strong> wire and the <strong>last digit of the Serial Number is ODD</strong>, cut the <strong>last Red</strong> wire.</li>
+      <li>Otherwise, if the last wire is <strong>Yellow</strong> and there are no <strong>Red</strong> wires, cut the <strong>first</strong> wire.</li>
+      <li>Otherwise, if there is exactly one <strong>Blue</strong> wire, cut the <strong>first</strong> wire.</li>
+      <li>Otherwise, if there is more than one <strong>Yellow</strong> wire, cut the <strong>last</strong> wire.</li>
+      <li>Otherwise, cut the <strong>second</strong> wire.</li>
+    </ul>
+
+    <h3>5 Wires:</h3>
+    <ul>
+      <li>If the last wire is <strong>Black</strong> and the <strong>last digit of the Serial Number is ODD</strong>, cut the <strong>fourth</strong> wire.</li>
+      <li>Otherwise, if there is exactly one <strong>Red</strong> wire and there is more than one <strong>Yellow</strong> wire, cut the <strong>first</strong> wire.</li>
+      <li>Otherwise, if there are no <strong>Black</strong> wires, cut the <strong>second</strong> wire.</li>
+      <li>Otherwise, cut the <strong>first</strong> wire.</li>
+    </ul>
+
+    <!-- MODULE 2: THE BUTTON -->
+    <h2>Module 2: The Button (ปุ่มกด)</h2>
+    <p>See below for instructions on when to TAP or HOLD the button:</p>
+    
+    <ol>
+      <li>If the button is <strong>Blue</strong> and says <strong>"Abort"</strong>, you must <strong>HOLD</strong> the button.</li>
+      <li>Otherwise, if the button says <strong>"Detonate"</strong>, you must <strong>TAP</strong> the button.</li>
+      <li>Otherwise, if the button is <strong>White</strong> and the bomb has <strong>2 or more batteries</strong>, you must <strong>TAP</strong> the button.</li>
+      <li>Otherwise, you must <strong>HOLD</strong> the button.</li>
+    </ol>
+
+    <h3>Releasing a Held Button:</h3>
+    <p>When you hold the button down, a colored indicator strip will light up on the right side of the module. Release the button based on the color of this strip:</p>
+    <ul>
+      <li><strong>Blue strip:</strong> Release when the countdown timer has a <strong>"4"</strong> in any position.</li>
+      <li><strong>White strip:</strong> Release when the countdown timer has a <strong>"1"</strong> in any position.</li>
+      <li><strong>Yellow strip:</strong> Release when the countdown timer has a <strong>"5"</strong> in any position.</li>
+      <li><strong>Any other strip color:</strong> Release when the countdown timer has a <strong>"1"</strong> in any position.</li>
+    </ul>
+
+    <!-- MODULE 3: KEYPAD GLYPHS -->
+    <h2>Module 3: Keypads (คีย์แพดสัญลักษณ์)</h2>
+    <p>A keypad module features 4 buttons with symbols. The buttons must be pressed in the order they appear from top to bottom in the column list below:</p>
+    
+    <div class="keypad-column">
+      <div style="font-size: 11px; color: #6b7280; font-weight: bold;">START</div>
+      <div class="keypad-symbol">Ϙ</div>
+      <div class="arrow-down">↓</div>
+      <div class="keypad-symbol">Ψ</div>
+      <div class="arrow-down">↓</div>
+      <div class="keypad-symbol">λ</div>
+      <div class="arrow-down">↓</div>
+      <div class="keypad-symbol">★</div>
+      <div class="arrow-down">↓</div>
+      <div class="keypad-symbol">Ҩ</div>
+      <div class="arrow-down">↓</div>
+      <div class="keypad-symbol">Ω</div>
+      <div class="arrow-down">↓</div>
+      <div class="keypad-symbol">☺</div>
+      <div style="font-size: 11px; color: #6b7280; font-weight: bold;">END</div>
+    </div>
+
+  </div>
+
+</body>
+</html>

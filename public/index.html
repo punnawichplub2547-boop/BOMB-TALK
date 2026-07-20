@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Keep Talking and Nobody Explodes - Web 3D</title>
+  <!-- Google Fonts for Retro LED and Industrial styles -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Special+Elite&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Background Ambience Overlay -->
+  <div class="dust-particles"></div>
+
+  <!-- MAIN CONTAINER -->
+  <div id="app">
+    
+    <!-- LOBBY SCREEN -->
+    <div id="lobby-screen" class="screen active">
+      <div class="lobby-card">
+        <h1 class="game-title">KEEP TALKING</h1>
+        <h2 class="game-subtitle">&amp; NOBODY EXPLODES</h2>
+        <div class="title-divider"></div>
+        
+        <div id="name-selection-step" class="lobby-step active">
+          <div class="form-group">
+            <label for="username">Enter Operator Name:</label>
+            <input type="text" id="username" placeholder="OPERATOR_X" autocomplete="off" maxlength="12">
+          </div>
+          <div class="button-group">
+            <button id="btn-create-room" class="btn primary">Create New Room</button>
+            <div class="or-separator"><span>OR</span></div>
+            <div class="join-group">
+              <input type="text" id="room-code-input" placeholder="ROOM CODE" maxlength="4" style="text-transform: uppercase;">
+              <button id="btn-join-room" class="btn secondary">Join Room</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="room-lobby-step" class="lobby-step">
+          <div class="room-code-display">ROOM CODE: <span id="code-text">----</span></div>
+          
+          <div class="role-selection-container">
+            <h3>SELECT YOUR ROLE:</h3>
+            <div class="roles-grid">
+              <div class="role-card" id="role-defuser" onclick="selectRole('defuser')">
+                <div class="role-icon">🔧</div>
+                <h4>DEFUSER</h4>
+                <p>Looks at the bomb. Can interact with modules. Cannot see the manual.</p>
+              </div>
+              <div class="role-card active" id="role-expert" onclick="selectRole('expert')">
+                <div class="role-icon">📖</div>
+                <h4>EXPERT</h4>
+                <p>Reads the manual. Cannot see the bomb. Gives instructions to Defuser.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="players-list-container">
+            <h4>Connected Personnel:</h4>
+            <ul id="players-list">
+              <!-- Dynamically populated -->
+            </ul>
+          </div>
+
+          <button id="btn-start-game" class="btn success disabled" disabled>Start Mission</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GAMEPLAY SCREEN -->
+    <div id="gameplay-screen" class="screen">
+      
+      <!-- Defuser Layout -->
+      <div id="defuser-layout" class="layout">
+        
+        <!-- Game HUD Panel (Overlaid on 3D Viewport) -->
+        <div id="hud-panel">
+          <!-- Digital LED Timer -->
+          <div id="led-timer" class="led-glow">05:00</div>
+          
+          <!-- Strike Indicators -->
+          <div class="strike-panel">
+            <span class="strike-label">STRIKES</span>
+            <div class="strike-lights">
+              <div class="strike-light" id="strike-1">X</div>
+              <div class="strike-light" id="strike-2">X</div>
+            </div>
+          </div>
+
+          <!-- Bomb Metadata Info -->
+          <div class="bomb-meta">
+            <div>SN: <span id="meta-serial">-------</span></div>
+            <div>BATT: <span id="meta-batteries">-</span></div>
+          </div>
+        </div>
+
+        <!-- 3D Canvas Container -->
+        <div id="canvas-container"></div>
+
+        <!-- Help Info Overlay -->
+        <div class="control-help">
+          <p>🖱️ Drag to rotate the bomb case | Left-click/Hold modules to interact</p>
+        </div>
+      </div>
+
+      <!-- Expert Layout -->
+      <div id="expert-layout" class="layout">
+        <div class="expert-info-panel">
+          <h2>YOU ARE THE EXPERT</h2>
+          <p>You cannot see the bomb. Guide the Defuser to solve the modules before time runs out!</p>
+          
+          <div class="manual-button-container">
+            <a href="manual.html" target="_blank" class="btn primary manual-btn">Open Bomb Defusal Manual</a>
+          </div>
+
+          <div class="expert-sync-panel">
+            <div class="sync-item">
+              <span class="label">TIME REMAINING:</span>
+              <div id="expert-timer" class="led-glow">05:00</div>
+            </div>
+            <div class="sync-item">
+              <span class="label">STRIKES:</span>
+              <div class="expert-strikes">
+                <span class="strike-light" id="exp-strike-1">X</span>
+                <span class="strike-light" id="exp-strike-2">X</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="expert-status-indicator">
+            <p>Waiting for Defuser actions...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- General Back to Lobby / Quit button -->
+      <button id="btn-quit-game" class="btn danger quit-btn">Abort Mission</button>
+    </div>
+
+    <!-- GAME OVER / SUCCESS MODAL OVERLAYS -->
+    <div id="game-over-modal" class="modal-overlay">
+      <div class="modal-content explosion-theme">
+        <h1 class="modal-title">DETONATED</h1>
+        <div class="modal-icon">💥</div>
+        <p id="game-over-reason">The bomb exploded due to time running out.</p>
+        <button class="btn primary btn-restart">Return to Lobby</button>
+      </div>
+    </div>
+
+    <div id="game-defused-modal" class="modal-overlay">
+      <div class="modal-content defused-theme">
+        <h1 class="modal-title">BOMB DEFUSED</h1>
+        <div class="modal-icon">✅</div>
+        <p>Excellent work! The bomb was successfully defused with <span id="defused-time-left">0:00</span> remaining.</p>
+        <button class="btn primary btn-restart">Return to Lobby</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Audio elements -->
+  <audio id="snd-tick" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav" preload="auto"></audio>
+  <audio id="snd-strike" src="https://assets.mixkit.co/active_storage/sfx/2959/2959-84.wav" preload="auto"></audio>
+  <audio id="snd-explosion" src="https://assets.mixkit.co/active_storage/sfx/1672/1672-84.wav" preload="auto"></audio>
+  <audio id="snd-defused" src="https://assets.mixkit.co/active_storage/sfx/2019/2019-84.wav" preload="auto"></audio>
+  <audio id="snd-click" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav" preload="auto"></audio>
+
+  <!-- Import Map for Three.js CDN -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <!-- Socket.io client script -->
+  <script src="/socket.io/socket.io.js"></script>
+  
+  <!-- Game Client JS -->
+  <script type="module" src="client.js"></script>
+</body>
+</html>
