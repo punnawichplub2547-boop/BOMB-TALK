@@ -117,18 +117,22 @@ function generateWiresModule(serialNumber) {
 }
 
 // Generate Button Module logic
-function generateButtonModule(batteries) {
+function generateButtonModule(batteries, indicators = []) {
   const texts = ["Abort", "Detonate", "Hold", "Press"];
   const colors = ["blue", "white", "yellow", "red"];
   const text = texts[Math.floor(Math.random() * texts.length)];
   const color = colors[Math.floor(Math.random() * colors.length)];
   const stripColor = colors[Math.floor(Math.random() * colors.length)];
 
+  const hasLitCAR = indicators.some(i => i.label === 'CAR' && i.lit);
+
   // Determine correct action: 'tap' or 'hold'
   let correctAction = 'hold';
   if (color === 'blue' && text === 'Abort') {
     correctAction = 'hold';
   } else if (text === 'Detonate') {
+    correctAction = 'tap';
+  } else if (hasLitCAR && batteries >= 2) {
     correctAction = 'tap';
   } else if (color === 'white' && batteries >= 2) {
     correctAction = 'tap';
@@ -263,7 +267,7 @@ function generateBombConfig() {
   const indicators = generateIndicators();
   
   const wires = generateWiresModule(serialNumber);
-  const button = generateButtonModule(batteries);
+  const button = generateButtonModule(batteries, indicators);
   const keypad = generateKeypadModule();
   const simon = generateSimonModule();
 
