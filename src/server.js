@@ -240,10 +240,27 @@ function generateSimonModule() {
   };
 }
 
+function generateIndicators() {
+  const possible = ['CAR', 'FRK', 'SND', 'CLR'];
+  const count = Math.floor(Math.random() * 2) + 1; // 1 or 2 indicators
+  const indicators = [];
+  const picked = [];
+  
+  while (picked.length < count) {
+    const label = possible[Math.floor(Math.random() * possible.length)];
+    if (!picked.includes(label)) {
+      picked.push(label);
+      indicators.push({ label, lit: Math.random() > 0.4 });
+    }
+  }
+  return indicators;
+}
+
 // Generate Bomb configuration
 function generateBombConfig() {
   const serialNumber = generateSerialNumber();
   const batteries = Math.floor(Math.random() * 4); // 0 to 3 batteries
+  const indicators = generateIndicators();
   
   const wires = generateWiresModule(serialNumber);
   const button = generateButtonModule(batteries);
@@ -253,6 +270,7 @@ function generateBombConfig() {
   return {
     serialNumber,
     batteries,
+    indicators,
     modules: [wires, button, keypad, simon]
   };
 }
@@ -420,6 +438,7 @@ io.on('connection', (socket) => {
         // Send full config to Defuser, but filter answers for safety
         serialNumber: room.bombConfig.serialNumber,
         batteries: room.bombConfig.batteries,
+        indicators: room.bombConfig.indicators,
         modules: room.bombConfig.modules.map((m, idx) => {
           if (m.type === 'wires') {
             return { type: 'wires', colors: m.colors, solved: false, index: idx };

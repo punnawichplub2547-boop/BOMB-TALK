@@ -338,6 +338,9 @@ socket.on('timer-update', ({ timeLeft, strikes }) => {
 socket.on('strike', ({ strikes }) => {
   playSound(sndStrike, 'strike');
   updateStrikesDisplay(strikes);
+  if (camera) {
+    spawnSparkBurst(new THREE.Vector3(0, 0, 1.2), 30);
+  }
 });
 
 function updateStrikesDisplay(strikes) {
@@ -508,6 +511,90 @@ function onWindowResize() {
 // PROCEDURAL 3D BOMB ASSEMBLY
 // ----------------------------------------------------
 
+function createHazardStripeTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#eab308'; // bright yellow
+  ctx.fillRect(0, 0, 128, 128);
+
+  ctx.fillStyle = '#18181b'; // dark black
+  for (let i = -128; i < 256; i += 32) {
+    ctx.beginPath();
+    ctx.moveTo(i, 0);
+    ctx.lineTo(i + 16, 0);
+    ctx.lineTo(i - 16, 128);
+    ctx.lineTo(i - 32, 128);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(4, 1);
+  return texture;
+}
+
+// Spark Particle System
+let sparkParticles = [];
+let sparkGroup = null;
+
+function initSparkSystem() {
+  sparkParticles = [];
+  if (sparkGroup && scene) {
+    scene.remove(sparkGroup);
+  }
+  sparkGroup = new THREE.Group();
+  if (scene) scene.add(sparkGroup);
+}
+
+function spawnSparkBurst(positionVec3, count = 25) {
+  if (!scene || !sparkGroup) return;
+  
+  for (let i = 0; i < count; i++) {
+    const geom = new THREE.SphereGeometry(0.025, 4, 4);
+    const mat = new THREE.MeshBasicMaterial({
+      color: Math.random() > 0.3 ? 0xffaa00 : 0xff3300
+    });
+    const p = new THREE.Mesh(geom, mat);
+    p.position.copy(positionVec3);
+    
+    const velocity = new THREE.Vector3(
+      (Math.random() - 0.5) * 3.0,
+      (Math.random() - 0.2) * 3.0 + 1.2,
+      (Math.random() - 0.5) * 3.0
+    );
+    
+    sparkGroup.add(p);
+    sparkParticles.push({
+      mesh: p,
+      velocity,
+      life: 1.0,
+      decay: 0.03 + Math.random() * 0.03
+    });
+  }
+}
+
+function updateSparkSystem() {
+  for (let i = sparkParticles.length - 1; i >= 0; i--) {
+    const p = sparkParticles[i];
+    p.mesh.position.addScaledVector(p.velocity, 0.016);
+    p.velocity.y -= 0.08; // gravity
+    p.life -= p.decay;
+    p.mesh.scale.setScalar(Math.max(0.01, p.life));
+    
+    if (p.life <= 0) {
+      if (sparkGroup) sparkGroup.remove(p.mesh);
+      p.mesh.geometry.dispose();
+      p.mesh.material.dispose();
+      sparkParticles.splice(i, 1);
+    }
+  }
+}
+
 function createGlyphTexture(symbol) {
   const canvas = document.createElement('canvas');
   canvas.width = 128;
@@ -553,61 +640,140 @@ function createTextTexture(text, bgColor, textColor, fontSize = 28) {
 
 function build3DBomb(bombConfig) {
   bombGroup = new THREE.Group();
+  initSparkSystem();
 
-  // 1. Briefcase Chassis (lightened color for detail visibility)
-  const chassisGeom = new THREE.BoxGeometry(5.2, 3.6, 1.4);
+  // 1. Briefcase Chassis (metallic industrial texture with chamfered bevels)
+  const chassisGeom = new THREE.BoxGeometry(5.4, 3.6, 1.4);
   const chassisMat = new THREE.MeshStandardMaterial({
-    color: 0x3e4452,
-    roughness: 0.5,
-    metalness: 0.8
+    color: 0x333842,
+    roughness: 0.4,
+    metalness: 0.85
   });
   const chassis = new THREE.Mesh(chassisGeom, chassisMat);
   chassis.castShadow = true;
   chassis.receiveShadow = true;
   bombGroup.add(chassis);
 
-  // Latches / Metal corner pads
-  const cornerMat = new THREE.MeshStandardMaterial({ color: 0x6b7280, metalness: 0.9, roughness: 0.2 });
+  // Hazard warning tape on top & bottom chassis edges
+  const hazardTex = createHazardStripeTexture();
+  const hazardMat = new THREE.MeshStandardMaterial({ map: hazardTex, roughness: 0.5 });
+  
+  const topHazard = new THREE.Mesh(new THREE.PlaneGeometry(5.38, 0.18), hazardMat);
+  topHazard.position.set(0, 1.71, 0.71);
+  const bottomHazard = new THREE.Mesh(new THREE.PlaneGeometry(5.38, 0.18), hazardMat);
+  bottomHazard.position.set(0, -1.71, 0.71);
+  bombGroup.add(topHazard, bottomHazard);
+
+  // Latches & Metal corner pads with rivets
+  const cornerMat = new THREE.MeshStandardMaterial({ color: 0x71717a, metalness: 0.95, roughness: 0.15 });
+  const rivetGeom = new THREE.CylinderGeometry(0.03, 0.03, 0.04, 12);
+  const rivetMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, metalness: 0.9 });
+
   const cornerPositions = [
-    [-2.6, 1.8, 0], [2.6, 1.8, 0], [-2.6, -1.8, 0], [2.6, -1.8, 0]
+    [-2.7, 1.8, 0], [2.7, 1.8, 0], [-2.7, -1.8, 0], [2.7, -1.8, 0]
   ];
   cornerPositions.forEach(([x, y, z]) => {
-    const corner = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.4, 1.42), cornerMat);
+    const corner = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.45, 1.42), cornerMat);
     corner.position.set(x, y, z);
     bombGroup.add(corner);
+
+    // Corner rivet
+    const rivet = new THREE.Mesh(rivetGeom, rivetMat);
+    rivet.rotation.x = Math.PI / 2;
+    rivet.position.set(x > 0 ? x - 0.2 : x + 0.2, y > 0 ? y - 0.2 : y + 0.2, 0.72);
+    bombGroup.add(rivet);
   });
 
   // Handle on top
-  const handleGeom = new THREE.BoxGeometry(1.6, 0.15, 0.15);
+  const handleGeom = new THREE.BoxGeometry(1.8, 0.16, 0.16);
   const handle = new THREE.Mesh(handleGeom, cornerMat);
   handle.position.set(0, 1.9, 0);
   bombGroup.add(handle);
 
   // 2. Serial Number Stamp on Top Side
-  const serialLabelGeom = new THREE.PlaneGeometry(1.2, 0.35);
+  const serialLabelGeom = new THREE.PlaneGeometry(1.4, 0.38);
   const serialTex = createTextTexture(bombConfig.serialNumber, '#d4c5a9', '#111827', 32);
   const serialMat = new THREE.MeshStandardMaterial({ map: serialTex });
   const serialMesh = new THREE.Mesh(serialLabelGeom, serialMat);
   serialMesh.position.set(-1.2, 1.81, 0);
-  serialMesh.rotation.x = -Math.PI / 2; // place flat on top surface
+  serialMesh.rotation.x = -Math.PI / 2;
   bombGroup.add(serialMesh);
 
   // 3. Batteries Compartment on Bottom Side
-  const batteryBase = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.35, 0.4), chassisMat);
+  const batteryBase = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, 0.4), chassisMat);
   batteryBase.position.set(1.2, -1.81, 0);
   batteryBase.rotation.x = Math.PI / 2;
   bombGroup.add(batteryBase);
 
   for (let i = 0; i < bombConfig.batteries; i++) {
-    const battGeom = new THREE.CylinderGeometry(0.06, 0.06, 0.3);
-    const battMat = new THREE.MeshStandardMaterial({ color: 0xb45309, metalness: 0.8 }); // golden copper look
+    const battGeom = new THREE.CylinderGeometry(0.065, 0.065, 0.32);
+    const battMat = new THREE.MeshStandardMaterial({ color: 0xb45309, metalness: 0.85 });
     const batt = new THREE.Mesh(battGeom, battMat);
-    batt.position.set(1.0 + (i * 0.15), -1.85, 0);
+    batt.position.set(0.95 + (i * 0.16), -1.85, 0);
     batt.rotation.z = Math.PI / 2;
     bombGroup.add(batt);
   }
 
-  // 4. Populate Modules (2x2 Grid)
+  // 4. Side Indicators (CAR, FRK, SND, CLR)
+  if (bombConfig.indicators && bombConfig.indicators.length > 0) {
+    const indGroup = new THREE.Group();
+    indGroup.position.set(-2.71, 0.2, 0);
+    indGroup.rotation.y = -Math.PI / 2;
+
+    bombConfig.indicators.forEach((ind, idx) => {
+      const indY = -idx * 0.45;
+      
+      // Label plate
+      const labelTex = createTextTexture(ind.label, '#1f2937', '#f9fafb', 24);
+      const labelMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.7, 0.3),
+        new THREE.MeshStandardMaterial({ map: labelTex })
+      );
+      labelMesh.position.set(0, indY, 0);
+
+      // Light LED
+      const ledGeom = new THREE.CylinderGeometry(0.05, 0.05, 0.04);
+      const ledMat = new THREE.MeshStandardMaterial({
+        color: ind.lit ? 0x10b981 : 0x450a0a,
+        emissive: ind.lit ? 0x10b981 : 0x000000
+      });
+      const ledMesh = new THREE.Mesh(ledGeom, ledMat);
+      ledMesh.rotation.x = Math.PI / 2;
+      ledMesh.position.set(0.48, indY, 0.01);
+
+      indGroup.add(labelMesh, ledMesh);
+    });
+
+    bombGroup.add(indGroup);
+  }
+
+  // 5. Recessed Module Bays & Modules (2x2 Grid)
+  const moduleSlotPositions = [
+    [-1.3, 0.75], [1.3, 0.75],
+    [-1.3, -0.75], [1.3, -0.75]
+  ];
+
+  moduleSlotPositions.forEach(([slotX, slotY]) => {
+    // Recessed Frame
+    const frameGeom = new THREE.BoxGeometry(2.24, 1.48, 0.04);
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x18181b, metalness: 0.8, roughness: 0.3 });
+    const frame = new THREE.Mesh(frameGeom, frameMat);
+    frame.position.set(slotX, slotY, 0.69);
+    bombGroup.add(frame);
+
+    // 4 Corner Rivets per bay
+    const bayRivets = [
+      [slotX - 1.05, slotY + 0.68], [slotX + 1.05, slotY + 0.68],
+      [slotX - 1.05, slotY - 0.68], [slotX + 1.05, slotY - 0.68]
+    ];
+    bayRivets.forEach(([rx, ry]) => {
+      const r = new THREE.Mesh(rivetGeom, rivetMat);
+      r.rotation.x = Math.PI / 2;
+      r.position.set(rx, ry, 0.71);
+      bombGroup.add(r);
+    });
+  });
+
   bombConfig.modules.forEach((mod) => {
     if (mod.type === 'wires') {
       assembleWiresModule(mod);
@@ -684,15 +850,21 @@ function assembleWiresModule(mod) {
     wireGroup.position.set(0, wireY, 0.08);
     wireGroup.userData = { isWire: true, wireIndex: idx, cut: false };
 
-    const wireGeom = new THREE.CylinderGeometry(0.035, 0.035, 1.5);
+    // Curved 3D wire tube geometry (sags realistically)
+    const sagY = (idx % 2 === 0) ? -0.06 : -0.12;
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.75, 0, 0),
+      new THREE.Vector3(0, sagY, 0.08),
+      new THREE.Vector3(0.75, 0, 0)
+    ]);
+    const wireGeom = new THREE.TubeGeometry(curve, 20, 0.035, 8, false);
     const wireMat = new THREE.MeshStandardMaterial({
       color: COLOR_HEX_MAP[colorName],
-      roughness: 0.6,
+      roughness: 0.4,
       metalness: 0.2
     });
     const wireCylinder = new THREE.Mesh(wireGeom, wireMat);
     wireCylinder.name = "wire_uncut";
-    wireCylinder.rotation.z = Math.PI / 2;
     wireGroup.add(wireCylinder);
 
     const segmentGeom = new THREE.CylinderGeometry(0.035, 0.035, 0.7);
@@ -1072,15 +1244,14 @@ function animate() {
   requestAnimationFrame(animate);
 
   controls.update();
+  updateSparkSystem();
 
   // Subtle overhead hanging light movement
   frameCount += 0.02;
   const alarmLight = scene.userData.alarmLight;
   if (alarmLight) {
-    // If timer is short (e.g. < 60s, handled by checking text content)
     const minutesLeft = parseInt(ledTimer.textContent.split(':')[0], 10);
     if (minutesLeft === 0) {
-      // Rapid pulsing red warning light!
       alarmLight.intensity = Math.sin(frameCount * 5) * 1.5 + 1.5;
     } else {
       alarmLight.intensity = 0;
