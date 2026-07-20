@@ -277,6 +277,8 @@ socket.on('error-msg', (msg) => {
 // GAME STATE SYNC
 // ----------------------------------------------------
 
+let currentSimonSequence = [];
+
 socket.on('game-started', ({ bombConfig, timer }) => {
   lobbyScreen.classList.remove('active');
   gameplayScreen.classList.add('active');
@@ -295,9 +297,22 @@ socket.on('game-started', ({ bombConfig, timer }) => {
     strike1.classList.remove('active');
     strike2.classList.remove('active');
 
+    // Store simon sequence
+    const simonMod = bombConfig.modules.find(m => m.type === 'simon');
+    if (simonMod) {
+      currentSimonSequence = simonMod.sequence;
+    }
+
     // Build 3D bomb
     initThreeJS();
     build3DBomb(bombConfig);
+
+    // Initial stage 1 flash for Simon Says
+    if (simonMod) {
+      setTimeout(() => {
+        triggerSimonFlash(currentSimonSequence, 1);
+      }, 1000);
+    }
   } else {
     expertLayout.classList.add('active');
     defuserLayout.classList.remove('active');
@@ -343,6 +358,20 @@ socket.on('module-solved', ({ type }) => {
     indicator.mesh.material.emissive.setHex(0x10b981);
   }
   playSound(sndClick, 'click');
+});
+
+socket.on('simon-stage-advance', ({ stage }) => {
+  playSound(sndClick, 'click');
+  setTimeout(() => {
+    triggerSimonFlash(currentSimonSequence, stage);
+  }, 400);
+});
+
+socket.on('simon-reset', ({ stage }) => {
+  playSound(sndStrike, 'strike');
+  setTimeout(() => {
+    triggerSimonFlash(currentSimonSequence, stage);
+  }, 600);
 });
 
 socket.on('game-defused', ({ timeLeft }) => {
@@ -578,13 +607,7 @@ function build3DBomb(bombConfig) {
     bombGroup.add(batt);
   }
 
-  // 4. Populate Modules
-  // We place 3 modules at specific slots:
-  // Slot 1 (Left): Wires module (x = -1.6)
-  // Slot 2 (Center): Button module (x = 0)
-  // Slot 3 (Right): Keypad module (x = 1.6)
-  // z-coordinate of front face is 0.7. Modules sit at z = 0.71
-
+  // 4. Populate Modules (2x2 Grid)
   bombConfig.modules.forEach((mod) => {
     if (mod.type === 'wires') {
       assembleWiresModule(mod);
@@ -592,6 +615,8 @@ function build3DBomb(bombConfig) {
       assembleButtonModule(mod);
     } else if (mod.type === 'keypad') {
       assembleKeypadModule(mod);
+    } else if (mod.type === 'simon') {
+      assembleSimonModule(mod);
     }
   });
 
@@ -625,44 +650,41 @@ function addStatusLED(parent, x, y, type) {
   moduleStatusLights.push({ mesh: led, type });
 }
 
-// WIRES MODULE (Stacked top to bottom)
+// WIRES MODULE
 function assembleWiresModule(mod) {
   const group = new THREE.Group();
-  group.position.set(-1.6, 0, 0.7);
+  group.position.set(-1.3, 0.75, 0.7);
 
   // Background module plate
   const plate = new THREE.Mesh(
-    new THREE.BoxGeometry(1.3, 2.6, 0.05),
+    new THREE.BoxGeometry(2.1, 1.35, 0.05),
     new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.8 })
   );
   group.add(plate);
 
-  addStatusLED(group, 0.45, 1.1, 'wires');
+  addStatusLED(group, 0.85, 0.5, 'wires');
 
-  // Draw wire rails (left and right vertical connectors)
-  const railGeom = new THREE.BoxGeometry(0.15, 1.6, 0.08);
+  // Draw wire rails
+  const railGeom = new THREE.BoxGeometry(0.15, 1.0, 0.08);
   const railMat = new THREE.MeshStandardMaterial({ color: 0x18181b, metalness: 0.6 });
   const leftRail = new THREE.Mesh(railGeom, railMat);
-  leftRail.position.set(-0.45, 0, 0.04);
+  leftRail.position.set(-0.75, 0, 0.04);
   const rightRail = new THREE.Mesh(railGeom, railMat);
-  rightRail.position.set(0.45, 0, 0.04);
+  rightRail.position.set(0.75, 0, 0.04);
   group.add(leftRail, rightRail);
 
-  // Render individual wire cylinders (horizontal wires stacked vertically top-to-bottom)
   const totalWires = mod.colors.length;
-  const startY = 0.6;
-  const gap = 1.2 / (totalWires - 1 || 1);
+  const startY = 0.35;
+  const gap = 0.7 / (totalWires - 1 || 1);
 
   mod.colors.forEach((colorName, idx) => {
     const wireY = startY - (idx * gap);
     
-    // Group to hold the split parts or single wire
     const wireGroup = new THREE.Group();
     wireGroup.position.set(0, wireY, 0.08);
     wireGroup.userData = { isWire: true, wireIndex: idx, cut: false };
 
-    // Uncut single wire cylinder (rotated horizontally)
-    const wireGeom = new THREE.CylinderGeometry(0.035, 0.035, 0.9);
+    const wireGeom = new THREE.CylinderGeometry(0.035, 0.035, 1.5);
     const wireMat = new THREE.MeshStandardMaterial({
       color: COLOR_HEX_MAP[colorName],
       roughness: 0.6,
@@ -670,31 +692,28 @@ function assembleWiresModule(mod) {
     });
     const wireCylinder = new THREE.Mesh(wireGeom, wireMat);
     wireCylinder.name = "wire_uncut";
-    wireCylinder.rotation.z = Math.PI / 2; // lie horizontally
+    wireCylinder.rotation.z = Math.PI / 2;
     wireGroup.add(wireCylinder);
 
-    // Prepare cut segments (initially hidden)
-    const segmentGeom = new THREE.CylinderGeometry(0.035, 0.035, 0.4);
+    const segmentGeom = new THREE.CylinderGeometry(0.035, 0.035, 0.7);
     
     const leftSegment = new THREE.Mesh(segmentGeom, wireMat);
     leftSegment.rotation.z = Math.PI / 2;
-    leftSegment.position.set(-0.22, 0, 0);
-    leftSegment.rotation.y = 0.25; // bend slightly forward/outward
+    leftSegment.position.set(-0.35, 0, 0);
+    leftSegment.rotation.y = 0.25;
     leftSegment.name = "wire_cut_left";
     leftSegment.visible = false;
 
     const rightSegment = new THREE.Mesh(segmentGeom, wireMat);
     rightSegment.rotation.z = Math.PI / 2;
-    rightSegment.position.set(0.22, 0, 0);
-    rightSegment.rotation.y = -0.25; // bend slightly forward/outward
+    rightSegment.position.set(0.35, 0, 0);
+    rightSegment.rotation.y = -0.25;
     rightSegment.name = "wire_cut_right";
     rightSegment.visible = false;
 
     wireGroup.add(leftSegment, rightSegment);
 
-    // Register with raycaster
     interactiveObjects.push(wireCylinder);
-    // Bind wire index to the geometry mesh userData for lookup
     wireCylinder.userData = { parentGroup: wireGroup, wireIndex: idx };
 
     group.add(wireGroup);
@@ -706,32 +725,27 @@ function assembleWiresModule(mod) {
 // BUTTON MODULE
 function assembleButtonModule(mod) {
   const group = new THREE.Group();
-  group.position.set(0, 0, 0.7);
+  group.position.set(1.3, 0.75, 0.7);
 
-  // Background module plate
   const plate = new THREE.Mesh(
-    new THREE.BoxGeometry(1.3, 2.6, 0.05),
+    new THREE.BoxGeometry(2.1, 1.35, 0.05),
     new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.8 })
   );
   group.add(plate);
 
-  addStatusLED(group, 0.45, 1.1, 'button');
+  addStatusLED(group, 0.85, 0.5, 'button');
 
-  // Big Button cylinder mesh
   const buttonGroup = new THREE.Group();
-  buttonGroup.position.set(0, 0, 0.03);
+  buttonGroup.position.set(-0.25, 0, 0.03);
   buttonGroup.userData = { isButton: true };
 
-  // Base ring
-  const baseGeom = new THREE.CylinderGeometry(0.44, 0.44, 0.08, 32);
+  const baseGeom = new THREE.CylinderGeometry(0.42, 0.42, 0.08, 32);
   const baseMat = new THREE.MeshStandardMaterial({ color: 0x52525b, metalness: 0.8 });
   const base = new THREE.Mesh(baseGeom, baseMat);
   base.rotation.x = Math.PI / 2;
   buttonGroup.add(base);
 
-  // Colored Inner Button
-  const innerGeom = new THREE.CylinderGeometry(0.38, 0.38, 0.12, 32);
-  // Generate texture canvas for the text label
+  const innerGeom = new THREE.CylinderGeometry(0.36, 0.36, 0.12, 32);
   const btnTex = createTextTexture(mod.text, COLOR_HEX_MAP[mod.color] || 0xffffff, '#ffffff', 32);
   const innerMat = new THREE.MeshStandardMaterial({
     color: COLOR_HEX_MAP[mod.color],
@@ -739,7 +753,6 @@ function assembleButtonModule(mod) {
     map: btnTex
   });
   
-  // Rotate texture mapping to match top of cylinder face
   innerMat.map.center.set(0.5, 0.5);
   innerMat.map.rotation = Math.PI / 2;
 
@@ -749,18 +762,16 @@ function assembleButtonModule(mod) {
   innerButton.name = "the_button_mesh";
   buttonGroup.add(innerButton);
 
-  // Store interactive mesh for raycast
   interactiveObjects.push(innerButton);
   innerButton.userData = { isButtonFace: true, parentGroup: buttonGroup };
 
-  // Led Glow Strip on the side
-  const stripGeom = new THREE.BoxGeometry(0.12, 0.6, 0.04);
+  const stripGeom = new THREE.BoxGeometry(0.12, 0.8, 0.04);
   ledStripMaterial = new THREE.MeshStandardMaterial({
-    color: 0x1c1917, // dark unlit
+    color: 0x1c1917,
     roughness: 0.2
   });
   const ledStrip = new THREE.Mesh(stripGeom, ledStripMaterial);
-  ledStrip.position.set(0.45, 0, 0.03);
+  ledStrip.position.set(0.65, 0, 0.03);
   group.add(ledStrip);
 
   group.add(buttonGroup);
@@ -770,23 +781,19 @@ function assembleButtonModule(mod) {
 // KEYPAD MODULE
 function assembleKeypadModule(mod) {
   const group = new THREE.Group();
-  group.position.set(1.6, 0, 0.7);
+  group.position.set(-1.3, -0.75, 0.7);
 
-  // Background module plate
   const plate = new THREE.Mesh(
-    new THREE.BoxGeometry(1.3, 2.6, 0.05),
+    new THREE.BoxGeometry(2.1, 1.35, 0.05),
     new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.8 })
   );
   group.add(plate);
 
-  addStatusLED(group, 0.45, 1.1, 'keypad');
+  addStatusLED(group, 0.85, 0.5, 'keypad');
 
-  // 4 buttons in 2x2 grid
-  // X positions: -0.3, 0.3
-  // Y positions: 0.3, -0.3
   const buttonGrid = [
-    [-0.32, 0.32], [0.32, 0.32],
-    [-0.32, -0.32], [0.32, -0.32]
+    [-0.45, 0.22], [0.2, 0.22],
+    [-0.45, -0.28], [0.2, -0.28]
   ];
 
   mod.symbols.forEach((symbol, idx) => {
@@ -796,8 +803,7 @@ function assembleKeypadModule(mod) {
     keyGroup.position.set(x, y, 0.04);
     keyGroup.userData = { isKeypadKey: true, symbol };
 
-    // Button body
-    const bodyGeom = new THREE.BoxGeometry(0.48, 0.48, 0.08);
+    const bodyGeom = new THREE.BoxGeometry(0.55, 0.42, 0.08);
     const keyTex = createGlyphTexture(symbol);
     const keyMat = new THREE.MeshStandardMaterial({
       map: keyTex,
@@ -807,17 +813,93 @@ function assembleKeypadModule(mod) {
     keyMesh.name = `keypad_key_${idx}`;
     keyGroup.add(keyMesh);
 
-    // Indicator light above key
     const indicatorGeom = new THREE.BoxGeometry(0.12, 0.04, 0.02);
     const indicatorMat = new THREE.MeshStandardMaterial({ color: 0x111827 });
     const indicator = new THREE.Mesh(indicatorGeom, indicatorMat);
-    indicator.position.set(0, 0.22, 0.05);
+    indicator.position.set(0, 0.24, 0.05);
     keyGroup.add(indicator);
 
-    keyGroup.userData.indicator = indicator; // store reference to light up
+    keyGroup.userData.indicator = indicator;
 
     interactiveObjects.push(keyMesh);
     keyMesh.userData = { isKeypadFace: true, parentGroup: keyGroup, symbol };
+
+    group.add(keyGroup);
+  });
+
+  bombGroup.add(group);
+}
+
+// SIMON SAYS MODULE
+let simonButtons = [];
+
+function triggerSimonFlash(sequence, stage) {
+  let delay = 0;
+  for (let i = 0; i < stage; i++) {
+    const color = sequence[i];
+    setTimeout(() => {
+      flashSimonButton(color, 350);
+    }, delay);
+    delay += 550;
+  }
+}
+
+function flashSimonButton(colorName, durationMs = 350) {
+  const btnObj = simonButtons.find(b => b.color === colorName);
+  if (!btnObj) return;
+
+  btnObj.mesh.material.emissive.setHex(btnObj.flashHex);
+  btnObj.mesh.material.color.setHex(btnObj.flashHex);
+  playSound(sndClick, 'click');
+
+  setTimeout(() => {
+    btnObj.mesh.material.emissive.setHex(0x000000);
+    btnObj.mesh.material.color.setHex(btnObj.defaultHex);
+  }, durationMs);
+}
+
+function assembleSimonModule(mod) {
+  simonButtons = [];
+  const group = new THREE.Group();
+  group.position.set(1.3, -0.75, 0.7);
+
+  const plate = new THREE.Mesh(
+    new THREE.BoxGeometry(2.1, 1.35, 0.05),
+    new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.8 })
+  );
+  group.add(plate);
+
+  addStatusLED(group, 0.85, 0.5, 'simon');
+
+  const buttonConfigs = [
+    { color: 'red', x: -0.45, y: 0.22, defaultHex: 0x991b1b, flashHex: 0xef4444 },
+    { color: 'blue', x: 0.2, y: 0.22, defaultHex: 0x1e40af, flashHex: 0x3b82f6 },
+    { color: 'green', x: -0.45, y: -0.28, defaultHex: 0x166534, flashHex: 0x22c55e },
+    { color: 'yellow', x: 0.2, y: -0.28, defaultHex: 0x854d0e, flashHex: 0xeab308 }
+  ];
+
+  buttonConfigs.forEach(cfg => {
+    const keyGroup = new THREE.Group();
+    keyGroup.position.set(cfg.x, cfg.y, 0.04);
+
+    const bodyGeom = new THREE.BoxGeometry(0.55, 0.42, 0.08);
+    const keyMat = new THREE.MeshStandardMaterial({
+      color: cfg.defaultHex,
+      emissive: 0x000000,
+      roughness: 0.3
+    });
+    const keyMesh = new THREE.Mesh(bodyGeom, keyMat);
+    keyGroup.add(keyMesh);
+
+    interactiveObjects.push(keyMesh);
+    keyMesh.userData = { isSimonFace: true, color: cfg.color };
+
+    simonButtons.push({
+      mesh: keyMesh,
+      color: cfg.color,
+      defaultHex: cfg.defaultHex,
+      flashHex: cfg.flashHex
+    });
 
     group.add(keyGroup);
   });
@@ -894,6 +976,14 @@ function onPointerDown(e) {
       }, 100);
 
       socket.emit('press-keypad', hitObject.userData.symbol);
+    }
+
+    // 4. Simon Says click
+    else if (hitObject.userData.isSimonFace) {
+      activeInteractiveObject = hitObject;
+      const color = hitObject.userData.color;
+      flashSimonButton(color, 250);
+      socket.emit('press-simon', color);
     }
   }
 }

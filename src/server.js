@@ -177,6 +177,69 @@ function generateKeypadModule() {
   };
 }
 
+// Check if Serial Number contains vowels (A, E, I, O, U)
+function hasVowel(serialNumber) {
+  return /[AEIOU]/i.test(serialNumber);
+}
+
+// Simon Says mapping table
+function getSimonMappedColor(flashColor, strikes, vowel) {
+  const s = Math.min(strikes, 2);
+  if (vowel) {
+    if (s === 0) {
+      if (flashColor === 'red') return 'blue';
+      if (flashColor === 'blue') return 'red';
+      if (flashColor === 'green') return 'yellow';
+      if (flashColor === 'yellow') return 'green';
+    } else if (s === 1) {
+      if (flashColor === 'red') return 'yellow';
+      if (flashColor === 'blue') return 'green';
+      if (flashColor === 'green') return 'blue';
+      if (flashColor === 'yellow') return 'red';
+    } else {
+      if (flashColor === 'red') return 'green';
+      if (flashColor === 'blue') return 'red';
+      if (flashColor === 'green') return 'yellow';
+      if (flashColor === 'yellow') return 'blue';
+    }
+  } else {
+    if (s === 0) {
+      if (flashColor === 'red') return 'blue';
+      if (flashColor === 'blue') return 'yellow';
+      if (flashColor === 'green') return 'green';
+      if (flashColor === 'yellow') return 'red';
+    } else if (s === 1) {
+      if (flashColor === 'red') return 'red';
+      if (flashColor === 'blue') return 'blue';
+      if (flashColor === 'green') return 'yellow';
+      if (flashColor === 'yellow') return 'green';
+    } else {
+      if (flashColor === 'red') return 'yellow';
+      if (flashColor === 'blue') return 'green';
+      if (flashColor === 'green') return 'blue';
+      if (flashColor === 'yellow') return 'red';
+    }
+  }
+  return flashColor;
+}
+
+// Generate Simon Says Module logic
+function generateSimonModule() {
+  const colors = ['red', 'blue', 'green', 'yellow'];
+  const sequence = [];
+  for (let i = 0; i < 3; i++) {
+    sequence.push(colors[Math.floor(Math.random() * colors.length)]);
+  }
+
+  return {
+    type: 'simon',
+    sequence,
+    stage: 1,
+    stepInput: [],
+    solved: false
+  };
+}
+
 // Generate Bomb configuration
 function generateBombConfig() {
   const serialNumber = generateSerialNumber();
@@ -185,11 +248,12 @@ function generateBombConfig() {
   const wires = generateWiresModule(serialNumber);
   const button = generateButtonModule(batteries);
   const keypad = generateKeypadModule();
+  const simon = generateSimonModule();
 
   return {
     serialNumber,
     batteries,
-    modules: [wires, button, keypad]
+    modules: [wires, button, keypad, simon]
   };
 }
 
@@ -363,6 +427,8 @@ io.on('connection', (socket) => {
             return { type: 'button', text: m.text, color: m.color, solved: false, index: idx };
           } else if (m.type === 'keypad') {
             return { type: 'keypad', symbols: m.symbols, solved: false, index: idx };
+          } else if (m.type === 'simon') {
+            return { type: 'simon', sequence: m.sequence, stage: m.stage, solved: false, index: idx };
           }
         })
       },
@@ -458,6 +524,42 @@ io.on('connection', (socket) => {
       keypadModule.pressed = [];
       socket.emit('keypad-reset');
       registerStrike(currentRoomCode);
+    }
+  });
+
+  // Press Simon Says color button
+  socket.on('press-simon', (color) => {
+    const room = rooms.get(currentRoomCode);
+    if (!room || room.gameStatus !== 'playing') return;
+
+    const simonModule = room.bombConfig.modules.find(m => m.type === 'simon');
+    if (!simonModule || simonModule.solved) return;
+
+    const vowel = hasVowel(room.bombConfig.serialNumber);
+    const strikes = room.timer.strikes;
+    const stepIdx = simonModule.stepInput.length;
+    const flashColor = simonModule.sequence[stepIdx];
+    const expectedColor = getSimonMappedColor(flashColor, strikes, vowel);
+
+    if (color === expectedColor) {
+      simonModule.stepInput.push(color);
+      
+      if (simonModule.stepInput.length === simonModule.stage) {
+        if (simonModule.stage === 3) {
+          simonModule.solved = true;
+          io.to(currentRoomCode).emit('module-solved', { type: 'simon' });
+          checkBombStatus(currentRoomCode);
+        } else {
+          simonModule.stage += 1;
+          simonModule.stepInput = [];
+          io.to(currentRoomCode).emit('simon-stage-advance', { stage: simonModule.stage });
+        }
+      }
+    } else {
+      // Wrong press: Reset current stage inputs and cause a strike
+      simonModule.stepInput = [];
+      registerStrike(currentRoomCode);
+      io.to(currentRoomCode).emit('simon-reset', { stage: simonModule.stage });
     }
   });
 
