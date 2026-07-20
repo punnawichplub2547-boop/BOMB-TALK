@@ -42,8 +42,12 @@ function generateSerialNumber() {
   return sn;
 }
 
-// Keypad Column for modules
-const KEYPAD_GLYPHS = ["Ϙ", "Ψ", "λ", "★", "Ҩ", "Ω", "☺"];
+// Keypad Columns for modules (3 distinct columns matching KTANE mechanics)
+const KEYPAD_COLUMNS = [
+  ["Ϙ", "Ψ", "λ", "★", "Ҩ", "Ω", "☺"], // Column 1
+  ["Ϡ", "Ϙ", "϶", "Ҁ", "★", "Ͽ", "¶"], // Column 2
+  ["©", "Ѭ", "Ҁ", "Җ", "Ѯ", "λ", "϶"]  // Column 3
+];
 
 // Generate Wires Module logic
 function generateWiresModule(serialNumber) {
@@ -144,19 +148,24 @@ function generateButtonModule(batteries) {
 
 // Generate Keypad Module logic
 function generateKeypadModule() {
-  // Select 4 random unique glyphs from the column list, keeping their order in column
+  // 1. Pick a random column from the available columns
+  const colIndex = Math.floor(Math.random() * KEYPAD_COLUMNS.length);
+  const column = KEYPAD_COLUMNS[colIndex];
+
+  // 2. Select 4 random unique glyphs from this column
   const chosenIndices = [];
   while (chosenIndices.length < 4) {
-    const idx = Math.floor(Math.random() * KEYPAD_GLYPHS.length);
+    const idx = Math.floor(Math.random() * column.length);
     if (!chosenIndices.includes(idx)) {
       chosenIndices.push(idx);
     }
   }
-  // Correct order is sorting the indices ascending
-  chosenIndices.sort((a, b) => a - b);
-  const correctOrderSymbols = chosenIndices.map(idx => KEYPAD_GLYPHS[idx]);
 
-  // Scramble the symbols for the buttons display
+  // 3. Correct order is top-to-bottom in column (sorted ascending index)
+  chosenIndices.sort((a, b) => a - b);
+  const correctOrderSymbols = chosenIndices.map(idx => column[idx]);
+
+  // 4. Scramble display order on keypad buttons
   const displaySymbols = [...correctOrderSymbols].sort(() => Math.random() - 0.5);
 
   return {
@@ -491,6 +500,9 @@ io.on('connection', (socket) => {
           rooms.delete(currentRoomCode);
         } else {
           io.to(currentRoomCode).emit('room-updated', { code: room.code, players: room.players });
+          if (room.gameStatus === 'playing') {
+            io.to(currentRoomCode).emit('player-left', { name: username || 'A player' });
+          }
         }
       }
     }

@@ -35,16 +35,116 @@ const btnRestarts = document.querySelectorAll('.btn-restart');
 console.log('Debug: Found restart buttons in DOM:', btnRestarts.length);
 
 // Sounds
-const sndTick = document.getElementById('snd-tick');
-const sndStrike = document.getElementById('snd-strike');
-const sndExplosion = document.getElementById('snd-explosion');
-const sndDefused = document.getElementById('snd-defused');
-const sndClick = document.getElementById('snd-click');
+// Web Audio Context setup for zero-latency offline sound synthesis fallback
+let audioCtx = null;
 
-function playSound(audio) {
+function getAudioContext() {
+  if (!audioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) {
+      audioCtx = new AudioContextClass();
+    }
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+function playSynthSound(type) {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    if (type === 'tick') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.exponentialRampToValueAtTime(400, now + 0.03);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.03);
+    } else if (type === 'click') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(1200, now);
+      osc.frequency.exponentialRampToValueAtTime(300, now + 0.05);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    } else if (type === 'strike') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(160, now);
+      osc.frequency.setValueAtTime(110, now + 0.1);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.35);
+    } else if (type === 'explosion') {
+      const bufferSize = ctx.sampleRate * 0.8;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const output = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+      }
+      const whiteNoise = ctx.createBufferSource();
+      whiteNoise.buffer = buffer;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(300, now);
+      filter.frequency.linearRampToValueAtTime(40, now + 0.8);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.5, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+      whiteNoise.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      whiteNoise.start(now);
+    } else if (type === 'defused') {
+      const freqs = [523.25, 659.25, 783.99, 1046.50];
+      freqs.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const noteTime = now + idx * 0.08;
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, noteTime);
+        gain.gain.setValueAtTime(0.2, noteTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.25);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(noteTime);
+        osc.stop(noteTime + 0.25);
+      });
+    }
+  } catch (e) {
+    console.warn('Synth sound fallback failed:', e);
+  }
+}
+
+function playSound(audio, synthType) {
   if (audio) {
     audio.currentTime = 0;
-    audio.play().catch(() => {});
+    const promise = audio.play();
+    if (promise !== undefined) {
+      promise.catch(() => {
+        playSynthSound(synthType);
+      });
+    }
+  } else {
+    playSynthSound(synthType);
   }
 }
 
@@ -217,11 +317,11 @@ socket.on('timer-update', ({ timeLeft, strikes }) => {
   }
   
   // Tick sound
-  playSound(sndTick);
+  playSound(sndTick, 'tick');
 });
 
 socket.on('strike', ({ strikes }) => {
-  playSound(sndStrike);
+  playSound(sndStrike, 'strike');
   updateStrikesDisplay(strikes);
 });
 
@@ -242,17 +342,17 @@ socket.on('module-solved', ({ type }) => {
     indicator.mesh.material.color.setHex(0x10b981); // green
     indicator.mesh.material.emissive.setHex(0x10b981);
   }
-  playSound(sndClick);
+  playSound(sndClick, 'click');
 });
 
 socket.on('game-defused', ({ timeLeft }) => {
-  playSound(sndDefused);
+  playSound(sndDefused, 'defused');
   defusedTimeLeft.textContent = formatTime(timeLeft);
   gameDefusedModal.classList.add('active');
 });
 
 socket.on('game-over', ({ reason, strikes }) => {
-  playSound(sndExplosion);
+  playSound(sndExplosion, 'explosion');
   updateStrikesDisplay(strikes);
   
   if (reason === 'timeout') {
@@ -308,8 +408,10 @@ function initThreeJS() {
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
-  controls.minDistance = 4;
-  controls.maxDistance = 12;
+  controls.minDistance = 3.5;
+  controls.maxDistance = 8.5;
+  controls.minPolarAngle = Math.PI / 6; // prevent flipping top
+  controls.maxPolarAngle = Math.PI / 1.75; // prevent going under table
   controls.enablePan = false; // Don't let user pan away from bomb
 
   // Ambient Lighting (increased for visibility)
