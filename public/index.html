@@ -12,9 +12,9 @@
 </head>
 <body>
 
-  <!-- Background Ambience Overlay -->
   <div class="dust-particles"></div>
   <div class="crt-scanlines"></div>
+  <div id="explosion-flash"></div>
 
   <!-- MAIN CONTAINER -->
   <div id="app">
@@ -56,6 +56,28 @@
                 <div class="role-icon">📖</div>
                 <h4>EXPERT</h4>
                 <p>Reads the manual. Cannot see the bomb. Gives instructions to Defuser.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="difficulty-selection-container">
+            <h3>SELECT MISSION DIFFICULTY:</h3>
+            <div class="difficulty-grid">
+              <div class="diff-card" id="diff-easy" onclick="selectDifficulty('easy')">
+                <span class="diff-tag easy">EASY</span>
+                <span class="diff-info">2 Modules | 6:00m</span>
+              </div>
+              <div class="diff-card active" id="diff-medium" onclick="selectDifficulty('medium')">
+                <span class="diff-tag medium">MEDIUM</span>
+                <span class="diff-info">4 Modules | 5:00m</span>
+              </div>
+              <div class="diff-card" id="diff-hard" onclick="selectDifficulty('hard')">
+                <span class="diff-tag hard">HARD</span>
+                <span class="diff-info">6 Modules | 4:00m</span>
+              </div>
+              <div class="diff-card" id="diff-hardcore" onclick="selectDifficulty('hardcore')">
+                <span class="diff-tag hardcore">HARDCORE</span>
+                <span class="diff-info">8 Modules | 3:30m</span>
               </div>
             </div>
           </div>

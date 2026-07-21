@@ -304,9 +304,67 @@ body {
 }
 
 .role-card.active {
-  background: rgba(194, 59, 34, 0.15);
   border-color: #c23b22;
-  box-shadow: 0 0 10px rgba(194, 59, 34, 0.2);
+  box-shadow: 0 0 16px rgba(194, 59, 34, 0.2);
+  background: #232d42;
+}
+
+.difficulty-selection-container {
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.difficulty-selection-container h3 {
+  font-size: 13px;
+  color: #9ca3af;
+  margin-bottom: 12px;
+  letter-spacing: 0.8px;
+}
+
+.difficulty-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.diff-card {
+  background: #182235;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.diff-card:hover {
+  background: #232d42;
+  transform: translateY(-2px);
+}
+
+.diff-card.active {
+  border-color: #38bdf8;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+  background: rgba(14, 165, 233, 0.15);
+}
+
+.diff-tag {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.diff-tag.easy { color: #4ade80; }
+.diff-tag.medium { color: #facc15; }
+.diff-tag.hard { color: #f87171; }
+.diff-tag.hardcore { color: #c084fc; }
+
+.diff-info {
+  font-size: 10px;
+  color: #94a3b8;
+  display: block;
 }
 
 .role-icon {
@@ -718,4 +776,47 @@ body {
   80% { transform: translate(-1px, -1px) rotate(1deg); }
   90% { transform: translate(2px, 2px) rotate(0deg); }
   100% { transform: translate(1px, -2px) rotate(-1deg); }
+}
+
+/* Explosion Flash Overlay & Shake FX */
+#explosion-flash {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle, #ffffff 0%, #ff4500 45%, #b91c1c 75%, #000000 100%);
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+#explosion-flash.active {
+  animation: explosionFlashAnim 1.6s ease-out forwards;
+}
+
+@keyframes explosionFlashAnim {
+  0% { opacity: 1; filter: brightness(3) contrast(1.5); }
+  15% { opacity: 0.95; filter: brightness(2.5); }
+  40% { opacity: 0.7; filter: brightness(1.8); }
+  70% { opacity: 0.3; filter: brightness(1.2); }
+  100% { opacity: 0; filter: brightness(1); }
+}
+
+.shake-screen {
+  animation: massiveScreenShake 1.2s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes massiveScreenShake {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  10% { transform: translate3d(-12px, 10px, 0) rotate(-3deg); }
+  20% { transform: translate3d(14px, -12px, 0) rotate(3deg); }
+  30% { transform: translate3d(-16px, 14px, 0) rotate(-4deg); }
+  40% { transform: translate3d(16px, -14px, 0) rotate(4deg); }
+  50% { transform: translate3d(-10px, 8px, 0) rotate(-2deg); }
+  60% { transform: translate3d(8px, -6px, 0) rotate(2deg); }
+  70% { transform: translate3d(-4px, 4px, 0) rotate(-1deg); }
+  80% { transform: translate3d(4px, -2px, 0) rotate(1deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg); }
 }

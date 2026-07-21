@@ -34,7 +34,13 @@ const defusedTimeLeft = document.getElementById('defused-time-left');
 const btnRestarts = document.querySelectorAll('.btn-restart');
 console.log('Debug: Found restart buttons in DOM:', btnRestarts.length);
 
-// Sounds
+// Sounds DOM elements
+const sndTick = document.getElementById('snd-tick');
+const sndStrike = document.getElementById('snd-strike');
+const sndExplosion = document.getElementById('snd-explosion');
+const sndDefused = document.getElementById('snd-defused');
+const sndClick = document.getElementById('snd-click');
+
 // Web Audio Context setup for zero-latency offline sound synthesis fallback
 let audioCtx = null;
 
@@ -94,25 +100,60 @@ function playSynthSound(type) {
       osc.start(now);
       osc.stop(now + 0.35);
     } else if (type === 'explosion') {
-      const bufferSize = ctx.sampleRate * 0.8;
+      // 1. Sub-bass punch oscillator
+      const subOsc = ctx.createOscillator();
+      const subGain = ctx.createGain();
+      subOsc.type = 'sine';
+      subOsc.frequency.setValueAtTime(180, now);
+      subOsc.frequency.exponentialRampToValueAtTime(25, now + 1.2);
+      subGain.gain.setValueAtTime(0.9, now);
+      subGain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
+      subOsc.connect(subGain);
+      subGain.connect(ctx.destination);
+      subOsc.start(now);
+      subOsc.stop(now + 1.4);
+
+      // 2. Crunchy noise burst with lowpass sweep
+      const bufferSize = Math.floor(ctx.sampleRate * 1.5);
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const output = buffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) {
         output[i] = Math.random() * 2 - 1;
       }
-      const whiteNoise = ctx.createBufferSource();
-      whiteNoise.buffer = buffer;
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(300, now);
-      filter.frequency.linearRampToValueAtTime(40, now + 0.8);
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.5, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
-      whiteNoise.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-      whiteNoise.start(now);
+      filter.frequency.setValueAtTime(1200, now);
+      filter.frequency.exponentialRampToValueAtTime(50, now + 1.5);
+
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.8, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+
+      noise.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(ctx.destination);
+      noise.start(now);
+
+      // 3. Delayed echo impact
+      setTimeout(() => {
+        try {
+          const now2 = ctx.currentTime;
+          const sub2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          sub2.type = 'triangle';
+          sub2.frequency.setValueAtTime(90, now2);
+          sub2.frequency.exponentialRampToValueAtTime(30, now2 + 0.8);
+          gain2.gain.setValueAtTime(0.5, now2);
+          gain2.gain.exponentialRampToValueAtTime(0.001, now2 + 0.8);
+          sub2.connect(gain2);
+          gain2.connect(ctx.destination);
+          sub2.start(now2);
+          sub2.stop(now2 + 0.8);
+        } catch (e) {}
+      }, 120);
     } else if (type === 'defused') {
       const freqs = [523.25, 659.25, 783.99, 1046.50];
       freqs.forEach((freq, idx) => {
@@ -162,6 +203,10 @@ let bombGroup;
 let interactiveObjects = []; // raycast targets
 let activeInteractiveObject = null;
 let buttonPressStartTime = 0;
+let sparkParticles = [];
+let cameraShakeIntensity = 0;
+let explosionLight = null;
+let shockwaveRing = null;
 
 // Materials (global to change colors easily)
 let ledStripMaterial;
@@ -186,9 +231,16 @@ btnJoinRoom.addEventListener('click', () => {
   }
 });
 
-function updateLobbyUI(code, players) {
+let currentDifficulty = 'medium';
+
+window.selectDifficulty = function(diff) {
+  socket.emit('select-difficulty', diff);
+};
+
+function updateLobbyUI(code, players, difficulty = 'medium') {
   codeText.textContent = code;
   playersList.innerHTML = '';
+  currentDifficulty = difficulty || 'medium';
   
   roomPlayers = players;
 
@@ -200,6 +252,12 @@ function updateLobbyUI(code, players) {
       <span class="player-role ${p.role === 'defuser' ? 'role-defuser' : 'role-expert'}">${p.role}</span>
     `;
     playersList.appendChild(li);
+  });
+
+  // Highlight active difficulty card
+  ['easy', 'medium', 'hard', 'hardcore'].forEach(d => {
+    const el = document.getElementById(`diff-${d}`);
+    if (el) el.classList.toggle('active', d === currentDifficulty);
   });
 
   // Enable/Disable Start Game button: needs 1 defuser and 1 expert
@@ -237,16 +295,16 @@ btnRestarts.forEach((btn, idx) => {
 });
 
 // Socket Events
-socket.on('room-created', ({ code, players }) => {
+socket.on('room-created', ({ code, players, difficulty }) => {
   localRoomCode = code;
   myId = socket.id;
   currentRole = 'expert'; // creator defaults to expert
   nameStep.classList.remove('active');
   roomStep.classList.add('active');
-  updateLobbyUI(code, players);
+  updateLobbyUI(code, players, difficulty);
 });
 
-socket.on('joined-successfully', ({ code, players, yourId }) => {
+socket.on('joined-successfully', ({ code, players, difficulty, yourId }) => {
   localRoomCode = code;
   myId = yourId;
   
@@ -255,18 +313,17 @@ socket.on('joined-successfully', ({ code, players, yourId }) => {
 
   nameStep.classList.remove('active');
   roomStep.classList.add('active');
-  updateLobbyUI(code, players);
+  updateLobbyUI(code, players, difficulty);
 });
 
-socket.on('room-updated', ({ code, players }) => {
+socket.on('room-updated', ({ code, players, difficulty }) => {
   const me = players.find(p => p.id === socket.id);
   if (me) {
     currentRole = me.role;
-    // Visually toggle role card selection in UI
     document.getElementById('role-defuser').classList.toggle('active', currentRole === 'defuser');
     document.getElementById('role-expert').classList.toggle('active', currentRole === 'expert');
   }
-  updateLobbyUI(code, players);
+  updateLobbyUI(code, players, difficulty);
 });
 
 socket.on('error-msg', (msg) => {
@@ -387,13 +444,20 @@ socket.on('game-over', ({ reason, strikes }) => {
   playSound(sndExplosion, 'explosion');
   updateStrikesDisplay(strikes);
   
+  if (currentRole === 'defuser') {
+    triggerMassiveExplosion();
+  }
+
   if (reason === 'timeout') {
     gameOverReason.textContent = "The bomb exploded because time ran out.";
   } else {
-    gameOverReason.textContent = "The bomb exploded because you accumulated 3 strikes.";
+    gameOverReason.textContent = "The bomb exploded because maximum strikes were reached.";
   }
   
-  gameOverModal.classList.add('active');
+  // Delay modal appearance so the full explosion visual/shake can be experienced!
+  setTimeout(() => {
+    gameOverModal.classList.add('active');
+  }, 1250);
 });
 
 socket.on('returned-to-lobby', ({ players }) => {
@@ -496,6 +560,10 @@ function clearThreeJS() {
   bombGroup = null;
   interactiveObjects = [];
   moduleStatusLights.length = 0;
+  sparkParticles = [];
+  explosionLight = null;
+  shockwaveRing = null;
+  cameraShakeIntensity = 0;
 }
 
 function onWindowResize() {
@@ -538,62 +606,7 @@ function createHazardStripeTexture() {
   return texture;
 }
 
-// Spark Particle System
-let sparkParticles = [];
-let sparkGroup = null;
-
-function initSparkSystem() {
-  sparkParticles = [];
-  if (sparkGroup && scene) {
-    scene.remove(sparkGroup);
-  }
-  sparkGroup = new THREE.Group();
-  if (scene) scene.add(sparkGroup);
-}
-
-function spawnSparkBurst(positionVec3, count = 25) {
-  if (!scene || !sparkGroup) return;
-  
-  for (let i = 0; i < count; i++) {
-    const geom = new THREE.SphereGeometry(0.025, 4, 4);
-    const mat = new THREE.MeshBasicMaterial({
-      color: Math.random() > 0.3 ? 0xffaa00 : 0xff3300
-    });
-    const p = new THREE.Mesh(geom, mat);
-    p.position.copy(positionVec3);
-    
-    const velocity = new THREE.Vector3(
-      (Math.random() - 0.5) * 3.0,
-      (Math.random() - 0.2) * 3.0 + 1.2,
-      (Math.random() - 0.5) * 3.0
-    );
-    
-    sparkGroup.add(p);
-    sparkParticles.push({
-      mesh: p,
-      velocity,
-      life: 1.0,
-      decay: 0.03 + Math.random() * 0.03
-    });
-  }
-}
-
-function updateSparkSystem() {
-  for (let i = sparkParticles.length - 1; i >= 0; i--) {
-    const p = sparkParticles[i];
-    p.mesh.position.addScaledVector(p.velocity, 0.016);
-    p.velocity.y -= 0.08; // gravity
-    p.life -= p.decay;
-    p.mesh.scale.setScalar(Math.max(0.01, p.life));
-    
-    if (p.life <= 0) {
-      if (sparkGroup) sparkGroup.remove(p.mesh);
-      p.mesh.geometry.dispose();
-      p.mesh.material.dispose();
-      sparkParticles.splice(i, 1);
-    }
-  }
-}
+// Spark Particle System handled by dynamic explosion particle engine
 
 function createGlyphTexture(symbol) {
   const canvas = document.createElement('canvas');
@@ -638,12 +651,48 @@ function createTextTexture(text, bgColor, textColor, fontSize = 28) {
   return new THREE.CanvasTexture(canvas);
 }
 
+function getModuleSlotPositions(count) {
+  if (count <= 2) {
+    return [[-1.3, 0], [1.3, 0]];
+  } else if (count <= 4) {
+    return [
+      [-1.3, 0.75], [1.3, 0.75],
+      [-1.3, -0.75], [1.3, -0.75]
+    ];
+  } else if (count <= 6) {
+    return [
+      [-2.6, 0.75], [0, 0.75], [2.6, 0.75],
+      [-2.6, -0.75], [0, -0.75], [2.6, -0.75]
+    ];
+  } else {
+    return [
+      [-3.9, 0.75], [-1.3, 0.75], [1.3, 0.75], [3.9, 0.75],
+      [-3.9, -0.75], [-1.3, -0.75], [1.3, -0.75], [3.9, -0.75]
+    ];
+  }
+}
+
+function getChassisWidth(count) {
+  if (count <= 2) return 5.4;
+  if (count <= 4) return 5.4;
+  if (count <= 6) return 8.0;
+  return 10.6;
+}
+
 function build3DBomb(bombConfig) {
   bombGroup = new THREE.Group();
-  initSparkSystem();
+  sparkParticles = [];
+
+  const count = bombConfig.modules ? bombConfig.modules.length : 4;
+  const chassisWidth = getChassisWidth(count);
+
+  // Dynamically set camera distance based on chassis width
+  const camDist = count <= 4 ? 8 : (count <= 6 ? 10.5 : 12.5);
+  if (camera) camera.position.set(0, 0, camDist);
+  if (controls) controls.maxDistance = camDist + 4.0;
 
   // 1. Briefcase Chassis (metallic industrial texture with chamfered bevels)
-  const chassisGeom = new THREE.BoxGeometry(5.4, 3.6, 1.4);
+  const chassisGeom = new THREE.BoxGeometry(chassisWidth, 3.6, 1.4);
   const chassisMat = new THREE.MeshStandardMaterial({
     color: 0x333842,
     roughness: 0.4,
@@ -658,9 +707,9 @@ function build3DBomb(bombConfig) {
   const hazardTex = createHazardStripeTexture();
   const hazardMat = new THREE.MeshStandardMaterial({ map: hazardTex, roughness: 0.5 });
   
-  const topHazard = new THREE.Mesh(new THREE.PlaneGeometry(5.38, 0.18), hazardMat);
+  const topHazard = new THREE.Mesh(new THREE.PlaneGeometry(chassisWidth - 0.02, 0.18), hazardMat);
   topHazard.position.set(0, 1.71, 0.71);
-  const bottomHazard = new THREE.Mesh(new THREE.PlaneGeometry(5.38, 0.18), hazardMat);
+  const bottomHazard = new THREE.Mesh(new THREE.PlaneGeometry(chassisWidth - 0.02, 0.18), hazardMat);
   bottomHazard.position.set(0, -1.71, 0.71);
   bombGroup.add(topHazard, bottomHazard);
 
@@ -668,16 +717,16 @@ function build3DBomb(bombConfig) {
   const cornerMat = new THREE.MeshStandardMaterial({ color: 0x71717a, metalness: 0.95, roughness: 0.15 });
   const rivetGeom = new THREE.CylinderGeometry(0.03, 0.03, 0.04, 12);
   const rivetMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, metalness: 0.9 });
+  const halfW = chassisWidth / 2;
 
   const cornerPositions = [
-    [-2.7, 1.8, 0], [2.7, 1.8, 0], [-2.7, -1.8, 0], [2.7, -1.8, 0]
+    [-halfW, 1.8, 0], [halfW, 1.8, 0], [-halfW, -1.8, 0], [halfW, -1.8, 0]
   ];
   cornerPositions.forEach(([x, y, z]) => {
     const corner = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.45, 1.42), cornerMat);
     corner.position.set(x, y, z);
     bombGroup.add(corner);
 
-    // Corner rivet
     const rivet = new THREE.Mesh(rivetGeom, rivetMat);
     rivet.rotation.x = Math.PI / 2;
     rivet.position.set(x > 0 ? x - 0.2 : x + 0.2, y > 0 ? y - 0.2 : y + 0.2, 0.72);
@@ -717,13 +766,12 @@ function build3DBomb(bombConfig) {
   // 4. Side Indicators (CAR, FRK, SND, CLR)
   if (bombConfig.indicators && bombConfig.indicators.length > 0) {
     const indGroup = new THREE.Group();
-    indGroup.position.set(-2.71, 0.2, 0);
+    indGroup.position.set(-halfW - 0.01, 0.2, 0);
     indGroup.rotation.y = -Math.PI / 2;
 
     bombConfig.indicators.forEach((ind, idx) => {
       const indY = -idx * 0.45;
       
-      // Label plate
       const labelTex = createTextTexture(ind.label, '#1f2937', '#f9fafb', 24);
       const labelMesh = new THREE.Mesh(
         new THREE.PlaneGeometry(0.7, 0.3),
@@ -731,7 +779,6 @@ function build3DBomb(bombConfig) {
       );
       labelMesh.position.set(0, indY, 0);
 
-      // Light LED
       const ledGeom = new THREE.CylinderGeometry(0.05, 0.05, 0.04);
       const ledMat = new THREE.MeshStandardMaterial({
         color: ind.lit ? 0x10b981 : 0x450a0a,
@@ -747,21 +794,16 @@ function build3DBomb(bombConfig) {
     bombGroup.add(indGroup);
   }
 
-  // 5. Recessed Module Bays & Modules (2x2 Grid)
-  const moduleSlotPositions = [
-    [-1.3, 0.75], [1.3, 0.75],
-    [-1.3, -0.75], [1.3, -0.75]
-  ];
+  // 5. Recessed Module Bays & Modules (Dynamic Grid)
+  const moduleSlotPositions = getModuleSlotPositions(count);
 
   moduleSlotPositions.forEach(([slotX, slotY]) => {
-    // Recessed Frame
     const frameGeom = new THREE.BoxGeometry(2.24, 1.48, 0.04);
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x18181b, metalness: 0.8, roughness: 0.3 });
     const frame = new THREE.Mesh(frameGeom, frameMat);
     frame.position.set(slotX, slotY, 0.69);
     bombGroup.add(frame);
 
-    // 4 Corner Rivets per bay
     const bayRivets = [
       [slotX - 1.05, slotY + 0.68], [slotX + 1.05, slotY + 0.68],
       [slotX - 1.05, slotY - 0.68], [slotX + 1.05, slotY - 0.68]
@@ -774,15 +816,16 @@ function build3DBomb(bombConfig) {
     });
   });
 
-  bombConfig.modules.forEach((mod) => {
+  bombConfig.modules.forEach((mod, idx) => {
+    const [slotX, slotY] = moduleSlotPositions[idx] || [0, 0];
     if (mod.type === 'wires') {
-      assembleWiresModule(mod);
+      assembleWiresModule(mod, slotX, slotY);
     } else if (mod.type === 'button') {
-      assembleButtonModule(mod);
+      assembleButtonModule(mod, slotX, slotY);
     } else if (mod.type === 'keypad') {
-      assembleKeypadModule(mod);
+      assembleKeypadModule(mod, slotX, slotY);
     } else if (mod.type === 'simon') {
-      assembleSimonModule(mod);
+      assembleSimonModule(mod, slotX, slotY);
     }
   });
 
@@ -817,9 +860,9 @@ function addStatusLED(parent, x, y, type) {
 }
 
 // WIRES MODULE
-function assembleWiresModule(mod) {
+function assembleWiresModule(mod, posX = -1.3, posY = 0.75) {
   const group = new THREE.Group();
-  group.position.set(-1.3, 0.75, 0.7);
+  group.position.set(posX, posY, 0.7);
 
   // Background module plate
   const plate = new THREE.Mesh(
@@ -895,9 +938,9 @@ function assembleWiresModule(mod) {
 }
 
 // BUTTON MODULE
-function assembleButtonModule(mod) {
+function assembleButtonModule(mod, posX = 1.3, posY = 0.75) {
   const group = new THREE.Group();
-  group.position.set(1.3, 0.75, 0.7);
+  group.position.set(posX, posY, 0.7);
 
   const plate = new THREE.Mesh(
     new THREE.BoxGeometry(2.1, 1.35, 0.05),
@@ -951,9 +994,9 @@ function assembleButtonModule(mod) {
 }
 
 // KEYPAD MODULE
-function assembleKeypadModule(mod) {
+function assembleKeypadModule(mod, posX = -1.3, posY = -0.75) {
   const group = new THREE.Group();
-  group.position.set(-1.3, -0.75, 0.7);
+  group.position.set(posX, posY, 0.7);
 
   const plate = new THREE.Mesh(
     new THREE.BoxGeometry(2.1, 1.35, 0.05),
@@ -1030,10 +1073,10 @@ function flashSimonButton(colorName, durationMs = 350) {
   }, durationMs);
 }
 
-function assembleSimonModule(mod) {
+function assembleSimonModule(mod, posX = 1.3, posY = -0.75) {
   simonButtons = [];
   const group = new THREE.Group();
-  group.position.set(1.3, -0.75, 0.7);
+  group.position.set(posX, posY, 0.7);
 
   const plate = new THREE.Mesh(
     new THREE.BoxGeometry(2.1, 1.35, 0.05),
@@ -1232,6 +1275,185 @@ socket.on('keypad-reset', () => {
     }
   });
 });
+
+// ----------------------------------------------------
+// DYNAMIC EXPLOSION & PARTICLE SYSTEM
+// ----------------------------------------------------
+
+function triggerMassiveExplosion() {
+  if (!scene) return;
+
+  // 1. Camera Shake Initial Impulse
+  cameraShakeIntensity = 0.6;
+
+  // 2. Trigger Screen Flash Overlay
+  const flashEl = document.getElementById('explosion-flash');
+  if (flashEl) {
+    flashEl.classList.remove('active');
+    void flashEl.offsetWidth; // trigger reflow
+    flashEl.classList.add('active');
+  }
+
+  // 3. Trigger Screen Shake Class on App Container
+  const appContainer = document.getElementById('app');
+  if (appContainer) {
+    appContainer.classList.remove('shake-screen');
+    void appContainer.offsetWidth;
+    appContainer.classList.add('shake-screen');
+    setTimeout(() => {
+      appContainer.classList.remove('shake-screen');
+    }, 1300);
+  }
+
+  // 4. Blinding Point Light Burst at Bomb Origin
+  if (!explosionLight) {
+    explosionLight = new THREE.PointLight(0xff6600, 100, 25);
+    explosionLight.position.set(0, 0, 0);
+    scene.add(explosionLight);
+  } else {
+    explosionLight.intensity = 100;
+    explosionLight.color.setHex(0xff6600);
+  }
+
+  // 5. Create 3D Shockwave Ring expanding outward
+  const ringGeom = new THREE.RingGeometry(0.1, 0.4, 32);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0xffaa44,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 1.0,
+    blending: THREE.AdditiveBlending
+  });
+  shockwaveRing = new THREE.Mesh(ringGeom, ringMat);
+  shockwaveRing.position.set(0, 0, 0.5);
+  scene.add(shockwaveRing);
+
+  // 6. Spawn 280+ Debris, Fire & Spark Particles
+  const colors = [0xffffff, 0xffea00, 0xff6600, 0xef4444, 0x991b1b, 0x333333];
+  for (let i = 0; i < 280; i++) {
+    const geom = new THREE.SphereGeometry(0.04 + Math.random() * 0.08, 6, 6);
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const mat = new THREE.MeshBasicMaterial({
+      color: color,
+      transparent: true,
+      opacity: 1.0,
+      blending: color === 0x333333 ? THREE.NormalBlending : THREE.AdditiveBlending
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.set(
+      (Math.random() - 0.5) * 0.5,
+      (Math.random() - 0.5) * 0.5,
+      (Math.random() - 0.5) * 0.5
+    );
+
+    // Random outward velocity vector
+    const speed = 5 + Math.random() * 10;
+    const phi = Math.random() * Math.PI * 2;
+    const theta = Math.random() * Math.PI;
+    const velocity = new THREE.Vector3(
+      Math.sin(theta) * Math.cos(phi) * speed,
+      Math.sin(theta) * Math.sin(phi) * speed,
+      Math.cos(theta) * speed
+    );
+
+    scene.add(mesh);
+    sparkParticles.push({
+      mesh,
+      velocity,
+      life: 1.0,
+      decay: 0.35 + Math.random() * 0.5
+    });
+  }
+
+  // 7. Scatter/kick bomb casing
+  if (bombGroup) {
+    bombGroup.rotation.x += (Math.random() - 0.5) * 0.6;
+    bombGroup.rotation.y += (Math.random() - 0.5) * 0.8;
+  }
+}
+
+function spawnSparkBurst(pos, count = 25) {
+  if (!scene) return;
+  for (let i = 0; i < count; i++) {
+    const geom = new THREE.SphereGeometry(0.03, 4, 4);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xffcc00,
+      transparent: true,
+      opacity: 1.0,
+      blending: THREE.AdditiveBlending
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.copy(pos);
+
+    const speed = 2 + Math.random() * 4;
+    const velocity = new THREE.Vector3(
+      (Math.random() - 0.5) * speed,
+      (Math.random() - 0.5) * speed,
+      (Math.random() - 0.5) * speed
+    );
+
+    scene.add(mesh);
+    sparkParticles.push({
+      mesh,
+      velocity,
+      life: 1.0,
+      decay: 1.5 + Math.random()
+    });
+  }
+}
+
+function updateSparkSystem() {
+  if (!scene) return;
+  const delta = 0.016;
+
+  // Update particles
+  for (let i = sparkParticles.length - 1; i >= 0; i--) {
+    const p = sparkParticles[i];
+    p.life -= p.decay * delta;
+    
+    if (p.life <= 0) {
+      scene.remove(p.mesh);
+      p.mesh.geometry.dispose();
+      p.mesh.material.dispose();
+      sparkParticles.splice(i, 1);
+    } else {
+      p.mesh.position.addScaledVector(p.velocity, delta);
+      p.mesh.material.opacity = p.life;
+      p.velocity.y -= 2.0 * delta;
+      p.velocity.multiplyScalar(0.96);
+    }
+  }
+
+  // Update Shockwave
+  if (shockwaveRing) {
+    shockwaveRing.scale.addScalar(14 * delta);
+    shockwaveRing.material.opacity -= 0.7 * delta;
+    if (shockwaveRing.material.opacity <= 0) {
+      scene.remove(shockwaveRing);
+      shockwaveRing.geometry.dispose();
+      shockwaveRing.material.dispose();
+      shockwaveRing = null;
+    }
+  }
+
+  // Update explosion light decay
+  if (explosionLight && explosionLight.intensity > 0) {
+    explosionLight.intensity = Math.max(0, explosionLight.intensity - 50 * delta);
+  }
+
+  // Camera Shake Decay
+  if (cameraShakeIntensity > 0) {
+    if (camera) {
+      camera.position.x += (Math.random() - 0.5) * cameraShakeIntensity;
+      camera.position.y += (Math.random() - 0.5) * cameraShakeIntensity;
+      camera.position.z += (Math.random() - 0.5) * cameraShakeIntensity;
+    }
+    cameraShakeIntensity *= 0.91;
+    if (cameraShakeIntensity < 0.005) {
+      cameraShakeIntensity = 0;
+    }
+  }
+}
 
 // ----------------------------------------------------
 // RENDERING LOOP

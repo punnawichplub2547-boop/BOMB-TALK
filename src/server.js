@@ -11,7 +11,10 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer);
 
-const PORT = process.env.PORT || 3020;
+let PORT = process.env.PORT || 3020;
+if (Number(PORT) === 3000) {
+  PORT = 3020;
+}
 
 app.use(express.static(path.join(__dirname, '../public')));
 
@@ -260,22 +263,39 @@ function generateIndicators() {
   return indicators;
 }
 
-// Generate Bomb configuration
-function generateBombConfig() {
+const DIFFICULTY_SETTINGS = {
+  easy: { moduleCount: 2, duration: 360, maxStrikes: 3 },
+  medium: { moduleCount: 4, duration: 300, maxStrikes: 3 },
+  hard: { moduleCount: 6, duration: 240, maxStrikes: 3 },
+  hardcore: { moduleCount: 8, duration: 210, maxStrikes: 2 }
+};
+
+// Generate Bomb configuration based on difficulty
+function generateBombConfig(difficulty = 'medium') {
+  const settings = DIFFICULTY_SETTINGS[difficulty] || DIFFICULTY_SETTINGS.medium;
   const serialNumber = generateSerialNumber();
   const batteries = Math.floor(Math.random() * 4); // 0 to 3 batteries
   const indicators = generateIndicators();
   
-  const wires = generateWiresModule(serialNumber);
-  const button = generateButtonModule(batteries, indicators);
-  const keypad = generateKeypadModule();
-  const simon = generateSimonModule();
+  const moduleGenerators = [
+    () => generateWiresModule(serialNumber),
+    () => generateButtonModule(batteries, indicators),
+    () => generateKeypadModule(),
+    () => generateSimonModule()
+  ];
+
+  const modules = [];
+  for (let i = 0; i < settings.moduleCount; i++) {
+    const gen = moduleGenerators[i % moduleGenerators.length];
+    modules.push(gen());
+  }
 
   return {
     serialNumber,
     batteries,
     indicators,
-    modules: [wires, button, keypad, simon]
+    difficulty,
+    modules
   };
 }
 
@@ -363,9 +383,10 @@ io.on('connection', (socket) => {
       code,
       players: [{ id: socket.id, name, role: 'expert' }], // Creator defaults to expert
       gameStatus: 'lobby',
+      difficulty: 'medium',
       bombConfig: null,
       timer: {
-        duration: 300, // 5 minutes
+        duration: 300,
         timeLeft: 300,
         strikes: 0,
         maxStrikes: 3
@@ -375,7 +396,7 @@ io.on('connection', (socket) => {
 
     rooms.set(code, room);
     socket.join(code);
-    socket.emit('room-created', { code, players: room.players });
+    socket.emit('room-created', { code, players: room.players, difficulty: room.difficulty });
   });
 
   // Join room
@@ -394,15 +415,14 @@ io.on('connection', (socket) => {
     username = name;
     currentRoomCode = room.code;
     
-    // Assign role automatically to maintain balance: first joiner is expert, second defuser, etc.
     const hasDefuser = room.players.some(p => p.role === 'defuser');
     const role = hasDefuser ? 'expert' : 'defuser';
 
     room.players.push({ id: socket.id, name, role });
     socket.join(room.code);
 
-    io.to(room.code).emit('room-updated', { code: room.code, players: room.players });
-    socket.emit('joined-successfully', { code: room.code, players: room.players, yourId: socket.id });
+    io.to(room.code).emit('room-updated', { code: room.code, players: room.players, difficulty: room.difficulty });
+    socket.emit('joined-successfully', { code: room.code, players: room.players, difficulty: room.difficulty, yourId: socket.id });
   });
 
   // Select Role
@@ -413,7 +433,23 @@ io.on('connection', (socket) => {
     const player = room.players.find(p => p.id === socket.id);
     if (player) {
       player.role = role;
-      io.to(currentRoomCode).emit('room-updated', { code: room.code, players: room.players });
+      io.to(currentRoomCode).emit('room-updated', { code: room.code, players: room.players, difficulty: room.difficulty });
+    }
+  });
+
+  // Select Difficulty
+  socket.on('select-difficulty', (difficulty) => {
+    const room = rooms.get(currentRoomCode);
+    if (!room || room.gameStatus !== 'lobby') return;
+
+    if (DIFFICULTY_SETTINGS[difficulty]) {
+      room.difficulty = difficulty;
+      const settings = DIFFICULTY_SETTINGS[difficulty];
+      room.timer.duration = settings.duration;
+      room.timer.timeLeft = settings.duration;
+      room.timer.maxStrikes = settings.maxStrikes;
+
+      io.to(currentRoomCode).emit('room-updated', { code: room.code, players: room.players, difficulty: room.difficulty });
     }
   });
 
@@ -431,18 +467,21 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Init Bomb
-    room.bombConfig = generateBombConfig();
+    // Init Bomb based on chosen difficulty
+    const settings = DIFFICULTY_SETTINGS[room.difficulty] || DIFFICULTY_SETTINGS.medium;
+    room.bombConfig = generateBombConfig(room.difficulty);
     room.gameStatus = 'playing';
-    room.timer.timeLeft = room.timer.duration;
+    room.timer.duration = settings.duration;
+    room.timer.timeLeft = settings.duration;
     room.timer.strikes = 0;
+    room.timer.maxStrikes = settings.maxStrikes;
 
     io.to(currentRoomCode).emit('game-started', {
       bombConfig: {
-        // Send full config to Defuser, but filter answers for safety
         serialNumber: room.bombConfig.serialNumber,
         batteries: room.bombConfig.batteries,
         indicators: room.bombConfig.indicators,
+        difficulty: room.bombConfig.difficulty,
         modules: room.bombConfig.modules.map((m, idx) => {
           if (m.type === 'wires') {
             return { type: 'wires', colors: m.colors, solved: false, index: idx };
@@ -455,7 +494,7 @@ io.on('connection', (socket) => {
           }
         })
       },
-      timer: { timeLeft: room.timer.timeLeft, strikes: room.timer.strikes }
+      timer: { timeLeft: room.timer.timeLeft, strikes: room.timer.strikes, maxStrikes: room.timer.maxStrikes }
     });
 
     startTimer(currentRoomCode);
