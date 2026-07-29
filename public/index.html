@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BOMB-TALK — Defusal Operations Terminal</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💣</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&family=Special+Elite&family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
@@ -28,6 +29,7 @@
         <div class="term-bar">
           <div class="term-dots"><span></span><span></span><span></span></div>
           <span class="term-path">defusal-ops // secure channel</span>
+          <button id="btn-sound-toggle" class="btn-sound-toggle" type="button">[ 🔊 AUDIO: ON ]</button>
           <span class="term-status">ONLINE</span>
         </div>
 
@@ -43,21 +45,23 @@
               <div class="entry-col">
                 <label for="username">CALLSIGN&gt;</label>
                 <input type="text" id="username" placeholder="OPERATOR_A" autocomplete="off" maxlength="14">
-                <button id="btn-create-room" class="btn primary">[ CREATE ROOM ]</button>
               </div>
               <div class="entry-col">
-                <label for="room-code-input">JOIN CODE&gt;</label>
-                <input type="text" id="room-code-input" class="code-input" placeholder="____" maxlength="4">
-                <button id="btn-join-room" class="btn secondary">[ JOIN ROOM ]</button>
+                <label for="room-code">JOIN CODE&gt;</label>
+                <input type="text" id="room-code" placeholder="----" autocomplete="off" maxlength="4">
               </div>
             </div>
 
-            <div id="boot-log" class="boot-log"></div>
+            <div class="action-grid">
+              <button id="btn-create-room" class="btn primary">[ CREATE ROOM ]</button>
+              <button id="btn-join-room" class="btn secondary">[ JOIN ROOM ]</button>
+            </div>
 
-            <div class="term-footer">
-              <span>PROTOCOL 2-PLAYER</span>
-              <span>SECURE P2P</span>
-              <span>BUILD v2.4.0</span>
+            <div class="terminal-footer">
+              <span class="foot-bullet">&gt; keypad glyph table ............ ok</span>
+              <span class="foot-bullet">&gt; simon protocol timings ........ ok</span>
+              <span class="foot-bullet">&gt; defusal manual rev 2.4 ........ ok</span>
+              <span class="foot-bullet prompt-glow" id="lobby-status-msg">&gt; awaiting operator callsign</span>
             </div>
           </div>
         </div>
@@ -70,7 +74,7 @@
               <div class="room-code-display">
                 <span class="label">ROOM CODE&gt;</span>
                 <span id="code-text" class="code-value">----</span>
-                <button type="button" class="copy-hint" onclick="navigator.clipboard&amp;&amp;navigator.clipboard.writeText(document.getElementById('code-text').textContent);this.textContent='[ copied ]'">[ copy to clipboard ]</button>
+                <button type="button" id="btn-copy-room-link" class="copy-hint">[ COPY DIRECT ROOM LINK ]</button>
               </div>
 
               <div class="players-list-container">

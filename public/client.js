@@ -58,6 +58,7 @@ function getAudioContext() {
 }
 
 function playTerminalKeyClick(isEnterKey = false) {
+  if (isMuted) return;
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
@@ -219,7 +220,19 @@ function playSynthSound(type) {
   }
 }
 
+let isMuted = false;
+
+const btnSoundToggle = document.getElementById('btn-sound-toggle');
+if (btnSoundToggle) {
+  btnSoundToggle.addEventListener('click', () => {
+    isMuted = !isMuted;
+    btnSoundToggle.textContent = isMuted ? '[ 🔇 AUDIO: OFF ]' : '[ 🔊 AUDIO: ON ]';
+    btnSoundToggle.classList.toggle('muted', isMuted);
+  });
+}
+
 function playSound(audio, synthType) {
+  if (isMuted) return;
   if (audio) {
     audio.currentTime = 0;
     const promise = audio.play();
@@ -232,6 +245,18 @@ function playSound(audio, synthType) {
     playSynthSound(synthType);
   }
 }
+
+// Auto-fill room code from URL query string (?room=ABCD or ?code=ABCD)
+window.addEventListener('DOMContentLoaded', () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const roomParam = urlParams.get('room') || urlParams.get('code');
+  if (roomParam && roomCodeInput) {
+    const cleanCode = roomParam.trim().toUpperCase().slice(0, 4);
+    roomCodeInput.value = cleanCode;
+    const msgEl = document.getElementById('lobby-status-msg');
+    if (msgEl) msgEl.textContent = `> ROOM CODE [${cleanCode}] PRE-FILLED FROM LINK`;
+  }
+});
 
 // Socket.io initialization
 const socket = io();
@@ -304,6 +329,24 @@ if (usernameInput) {
 }
 
 let currentDifficulty = 'medium';
+
+const btnCopyRoomLink = document.getElementById('btn-copy-room-link');
+if (btnCopyRoomLink) {
+  btnCopyRoomLink.addEventListener('click', () => {
+    playSound(sndClick, 'click');
+    const code = document.getElementById('code-text').textContent.trim();
+    if (code && code !== '----') {
+      const directUrl = `${window.location.origin}${window.location.pathname}?room=${code}`;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(directUrl);
+      }
+      btnCopyRoomLink.textContent = '[ COPIED DIRECT LINK! ]';
+      setTimeout(() => {
+        btnCopyRoomLink.textContent = '[ COPY DIRECT ROOM LINK ]';
+      }, 2500);
+    }
+  });
+}
 
 window.selectDifficulty = function(diff) {
   playSound(sndClick, 'click');

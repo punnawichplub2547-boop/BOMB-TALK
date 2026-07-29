@@ -897,6 +897,7 @@ io.on('connection', (socket) => {
           if (room.timerTimeout) clearTimeout(room.timerTimeout);
           rooms.delete(currentRoomCode);
         } else {
+          io.to(currentRoomCode).emit('player-disconnected', { socketId: socket.id });
           io.to(currentRoomCode).emit('room-updated', { code: room.code, players: room.players });
           if (room.gameStatus === 'playing') {
             io.to(currentRoomCode).emit('player-left', { name: username || 'A player' });
