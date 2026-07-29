@@ -3,450 +3,405 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bomb Defusal Manual - Keep Talking and Nobody Explodes</title>
+  <title>BOMB-TALK — Technical Defusal Operations Manual</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&family=Special+Elite&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --amber: #f0b429;
+      --amber-hi: #ffd166;
+      --amber-dim: rgba(240, 180, 41, 0.55);
+      --line: rgba(240, 180, 41, 0.3);
+      --bg: #080a08;
+      --panel: #0d100c;
+      --panel-2: #121510;
+      --text: #f5f2e6;
+      --dim: #8a9280;
+      --hot: #ff6b3d;
+      --ok: #9bd17a;
+      --mono: 'Share Tech Mono', monospace;
+      --display: 'Orbitron', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
     body {
-      background-color: #f4f1ea;
-      color: #1c1917;
-      font-family: 'Courier Prime', Courier, monospace;
-      padding: 40px 20px;
-      line-height: 1.5;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      display: flex;
+      min-height: 100vh;
     }
 
-    .manual-container {
-      max-width: 800px;
-      margin: 0 auto;
-      background: #fff;
-      padding: 50px 60px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-      border: 1px solid #e4dfd5;
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 240px;
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      padding: 24px 16px;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      overflow-y: auto;
+    }
+
+    .sidebar-title {
+      font-family: var(--display);
+      font-size: 14px;
+      color: var(--amber);
+      margin-bottom: 20px;
+      letter-spacing: 2px;
+      border-bottom: 1px dashed var(--line);
+      padding-bottom: 10px;
+    }
+
+    .nav-list { list-style: none; }
+    .nav-list li { margin-bottom: 8px; }
+    .nav-list a {
+      color: var(--dim);
+      text-decoration: none;
+      font-size: 13px;
+      display: block;
+      padding: 8px 10px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+    }
+    .nav-list a:hover {
+      color: var(--amber-hi);
+      background: rgba(240, 180, 41, 0.08);
+      border-color: var(--line);
+    }
+
+    /* Main Manual Content */
+    .main-content {
+      margin-left: 240px;
+      flex: 1;
+      padding: 40px 60px;
+      max-width: 900px;
+    }
+
+    .header-bar {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 20px 30px;
+      margin-bottom: 40px;
       position: relative;
-      background-image: radial-gradient(rgba(0,0,0,0.02) 1px, transparent 0);
-      background-size: 24px 24px;
     }
 
-    /* TOP SECRET stamp style */
     .stamp {
       position: absolute;
-      top: 40px;
-      right: 60px;
-      border: 3px double #b91c1c;
-      color: #b91c1c;
+      top: 20px;
+      right: 30px;
+      border: 2px solid var(--hot);
+      color: var(--hot);
       font-family: 'Special Elite', cursive;
-      font-size: 18px;
-      padding: 6px 16px;
-      transform: rotate(8deg);
-      opacity: 0.85;
+      font-size: 14px;
+      padding: 4px 12px;
+      transform: rotate(5deg);
       letter-spacing: 2px;
-      font-weight: bold;
     }
 
     h1 {
-      font-family: 'Special Elite', cursive;
-      font-size: 32px;
-      text-align: center;
-      margin-bottom: 5px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
+      font-family: var(--display);
+      font-size: 26px;
+      color: var(--amber);
+      margin-bottom: 6px;
     }
 
     .subtitle {
-      text-align: center;
-      font-size: 14px;
-      color: #6b7280;
-      margin-bottom: 40px;
-      border-bottom: 2px solid #1c1917;
-      padding-bottom: 15px;
-      font-weight: bold;
+      color: var(--dim);
+      font-size: 12px;
+      letter-spacing: 1px;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 28px 32px;
+      margin-bottom: 36px;
     }
 
     h2 {
-      font-family: 'Special Elite', cursive;
-      font-size: 20px;
-      border-bottom: 1px dashed #1c1917;
-      padding-bottom: 6px;
-      margin-top: 40px;
-      margin-bottom: 15px;
-      color: #b91c1c;
-      text-transform: uppercase;
+      font-family: var(--display);
+      font-size: 18px;
+      color: var(--amber-hi);
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 8px;
+      margin-bottom: 18px;
     }
 
-    p {
-      margin-bottom: 15px;
-      font-size: 14px;
-    }
-
-    ul, ol {
-      margin-left: 24px;
-      margin-bottom: 20px;
-      font-size: 14px;
-    }
-
-    li {
-      margin-bottom: 8px;
-    }
+    p { font-size: 13px; color: var(--text); margin-bottom: 12px; line-height: 1.6; }
+    ul, ol { margin-left: 20px; margin-bottom: 16px; font-size: 13px; color: var(--dim); }
+    li { margin-bottom: 6px; }
+    strong { color: var(--amber); }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 20px 0;
-      font-size: 13px;
+      margin: 16px 0;
+      font-size: 12px;
     }
 
     th, td {
-      border: 1px solid #1c1917;
-      padding: 10px 12px;
+      border: 1px solid var(--line);
+      padding: 10px 14px;
       text-align: left;
-      vertical-align: top;
     }
 
     th {
-      background-color: #f3f4f6;
+      background: rgba(240, 180, 41, 0.12);
+      color: var(--amber-hi);
       font-weight: bold;
     }
 
-    .important-box {
-      border: 2px solid #b91c1c;
-      padding: 15px 20px;
-      background-color: #fef2f2;
-      margin-bottom: 25px;
-      font-size: 13px;
-    }
+    td { background: var(--panel-2); color: var(--text); }
 
-    .important-box strong {
-      color: #b91c1c;
-      font-family: 'Special Elite', cursive;
-      font-size: 15px;
-      display: block;
-      margin-bottom: 5px;
-    }
-
-    .keypad-columns-container {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-around;
-      gap: 15px;
-      margin: 25px 0;
-    }
-
-    .keypad-column {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      border: 1px solid #1c1917;
-      padding: 15px 12px;
-      width: 150px;
-      background: #fafafa;
-    }
-
-    .column-header {
+    .tag {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 3px;
       font-size: 11px;
       font-weight: bold;
-      color: #b91c1c;
-      letter-spacing: 1px;
-      margin-bottom: 5px;
     }
+    .tag-red { background: rgba(255, 107, 61, 0.2); color: #ff6b3d; border: 1px solid #ff6b3d; }
+    .tag-blue { background: rgba(96, 165, 250, 0.2); color: #60a5fa; border: 1px solid #60a5fa; }
+    .tag-white { background: rgba(245, 242, 230, 0.2); color: #f5f2e6; border: 1px solid #f5f2e6; }
+    .tag-yellow { background: rgba(250, 204, 21, 0.2); color: #facc15; border: 1px solid #facc15; }
 
-    .keypad-symbol {
-      font-size: 32px;
-      font-family: Arial, sans-serif;
-      width: 50px;
-      height: 50px;
-      border: 1px solid #6b7280;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-color: #fff;
-      border-radius: 4px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-
-    .arrow-down {
-      font-size: 18px;
-      color: #6b7280;
-    }
-
-    .back-btn {
-      display: inline-block;
-      margin-bottom: 20px;
-      color: #1c1917;
-      text-decoration: none;
-      font-weight: bold;
-      font-size: 13px;
-    }
-
-    .back-btn:hover {
-      text-decoration: underline;
-    }
-
-    @media print {
-      body {
-        background-color: #fff;
-        padding: 0;
-      }
-      .manual-container {
-        box-shadow: none;
-        border: none;
-        padding: 0;
-      }
+    .code-block {
+      background: #000;
+      border: 1px solid var(--line);
+      padding: 12px 16px;
+      font-family: var(--mono);
+      color: var(--ok);
+      margin: 12px 0;
+      border-left: 3px solid var(--amber);
     }
   </style>
 </head>
 <body>
 
-  <div class="manual-container">
-    <div class="stamp">TOP SECRET</div>
-    
-    <h1>BOMB DEFUSAL MANUAL</h1>
-    <div class="subtitle">Section 1: Module Defusal Instructions</div>
-
-    <div class="important-box">
-      <strong>WARNING:</strong>
-      Do not look at the bomb. You are the Expert. The Defuser is alone with the ticking bomb. Provide instructions clearly and calmly.
-    </div>
-
-    <!-- MISSION DIFFICULTY LEVELS -->
-    <h2>Mission Difficulty Levels (ระดับความยากภารกิจ)</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Difficulty</th>
-          <th>Modules</th>
-          <th>Time Limit</th>
-          <th>Max Strikes</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong style="color: #16a34a;">EASY</strong></td>
-          <td>2 Modules (1x2 Grid)</td>
-          <td>6:00 Minutes</td>
-          <td>3 Strikes</td>
-        </tr>
-        <tr>
-          <td><strong style="color: #ca8a04;">MEDIUM</strong></td>
-          <td>4 Modules (2x2 Grid)</td>
-          <td>5:00 Minutes</td>
-          <td>3 Strikes</td>
-        </tr>
-        <tr>
-          <td><strong style="color: #dc2626;">HARD</strong></td>
-          <td>6 Modules (2x3 Grid)</td>
-          <td>4:00 Minutes</td>
-          <td>3 Strikes</td>
-        </tr>
-        <tr>
-          <td><strong style="color: #9333ea;">HARDCORE</strong></td>
-          <td>8 Modules (2x4 Grid)</td>
-          <td>3:30 Minutes</td>
-          <td>2 Strikes</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <!-- BOMB INDICATORS & COMPONENTS -->
-    <h2>Bomb Specifications & Indicators (ข้อมูลจำเพาะและไฟแสดงผล)</h2>
-    <p>A bomb casing may feature side indicator labels with a small LED light. Indicators can be either <strong>LIT (ไฟติด)</strong> or <strong>UNLIT (ไฟดับ)</strong>:</p>
-    <ul>
-      <li><strong>CAR:</strong> Complete Auto Rubber indicator.</li>
-      <li><strong>FRK:</strong> Frequency Radio Keying indicator.</li>
-      <li><strong>SND:</strong> Sound Module System indicator.</li>
-      <li><strong>CLR:</strong> Clear Ready indicator.</li>
+  <!-- Navigation Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-title">DEFUSAL MANUAL v2.4</div>
+    <ul class="nav-list">
+      <li><a href="#sec-overview">00. GENERAL OVERVIEW</a></li>
+      <li><a href="#sec-wires">01. WIRES MODULE</a></li>
+      <li><a href="#sec-button">02. THE BUTTON</a></li>
+      <li><a href="#sec-keypad">03. KEYPAD SYMBOLS</a></li>
+      <li><a href="#sec-simon">04. SIMON SAYS</a></li>
+      <li><a href="#sec-morse">05. MORSE CODE</a></li>
+      <li><a href="#sec-memory">06. MEMORY MODULE</a></li>
     </ul>
+  </aside>
 
-    <!-- MODULE 1: WIRES -->
-    <h2>Module 1: Wires (สายไฟ)</h2>
-    <p>A wire module consists of 3 to 5 parallel wires. Only one wire must be cut to safely defuse the module. Wires are counted from top to bottom (1 is the top wire).</p>
+  <!-- Main Content -->
+  <main class="main-content">
     
-    <h3>3 Wires:</h3>
-    <ul>
-      <li>If there are no <strong>Red</strong> wires, cut the <strong>second</strong> wire.</li>
-      <li>Otherwise, if the last wire is <strong>White</strong>, cut the <strong>last</strong> wire.</li>
-      <li>Otherwise, if there is more than one <strong>Blue</strong> wire, cut the <strong>last Blue</strong> wire.</li>
-      <li>Otherwise, cut the <strong>last</strong> wire.</li>
-    </ul>
+    <header class="header-bar">
+      <div class="stamp">CLASSIFIED // TOP SECRET</div>
+      <h1>BOMB DEFUSAL MANUAL</h1>
+      <p class="subtitle">TACTICAL ADVISOR REFERENCE GUIDE — REVISION 2.4.0</p>
+    </header>
 
-    <h3>4 Wires:</h3>
-    <ul>
-      <li>If there is more than one <strong>Red</strong> wire and the <strong>last digit of the Serial Number is ODD</strong>, cut the <strong>last Red</strong> wire.</li>
-      <li>Otherwise, if the last wire is <strong>Yellow</strong> and there are no <strong>Red</strong> wires, cut the <strong>first</strong> wire.</li>
-      <li>Otherwise, if there is exactly one <strong>Blue</strong> wire, cut the <strong>first</strong> wire.</li>
-      <li>Otherwise, if there is more than one <strong>Yellow</strong> wire, cut the <strong>last</strong> wire.</li>
-      <li>Otherwise, cut the <strong>second</strong> wire.</li>
-    </ul>
+    <!-- OVERVIEW -->
+    <section id="sec-overview">
+      <h2>00. GENERAL OVERVIEW</h2>
+      <p>A bomb will detonate when its countdown timer reaches <strong>00:00</strong> or when the maximum allowed <strong>STRIKES</strong> are accumulated. Communication between Expert and Defuser is critical.</p>
+      <ul>
+        <li><strong>Serial Number (SN):</strong> Check whether the last digit is Odd or Even, and if it contains vowels (A, E, I, O, U).</li>
+        <li><strong>Batteries (BATT):</strong> Count total battery cells on side panels.</li>
+        <li><strong>Indicators:</strong> Note lit indicators (e.g. lit CAR, lit FRK).</li>
+      </ul>
+    </section>
 
-    <h3>5 Wires:</h3>
-    <ul>
-      <li>If the last wire is <strong>Black</strong> and the <strong>last digit of the Serial Number is ODD</strong>, cut the <strong>fourth</strong> wire.</li>
-      <li>Otherwise, if there is exactly one <strong>Red</strong> wire and there is more than one <strong>Yellow</strong> wire, cut the <strong>first</strong> wire.</li>
-      <li>Otherwise, if there are no <strong>Black</strong> wires, cut the <strong>second</strong> wire.</li>
-      <li>Otherwise, cut the <strong>first</strong> wire.</li>
-    </ul>
+    <!-- 01. WIRES -->
+    <section id="sec-wires">
+      <h2>01. WIRES MODULE</h2>
+      <p>Wires are ordered top-to-bottom (Wire 1 to Wire N). Cut only ONE correct wire.</p>
 
-    <!-- MODULE 2: THE BUTTON -->
-    <h2>Module 2: The Button (ปุ่มกด)</h2>
-    <p>See below for instructions on when to TAP or HOLD the button:</p>
-    
-    <ol>
-      <li>If the button is <strong>Blue</strong> and says <strong>"Abort"</strong>, you must <strong>HOLD</strong> the button.</li>
-      <li>Otherwise, if the button says <strong>"Detonate"</strong>, you must <strong>TAP</strong> the button.</li>
-      <li>Otherwise, if there is a <strong>LIT indicator with label CAR</strong> and the bomb has <strong>2 or more batteries</strong>, you must <strong>TAP</strong> the button.</li>
-      <li>Otherwise, if the button is <strong>White</strong> and the bomb has <strong>2 or more batteries</strong>, you must <strong>TAP</strong> the button.</li>
-      <li>Otherwise, you must <strong>HOLD</strong> the button.</li>
-    </ol>
+      <h3>3 Wires</h3>
+      <ul>
+        <li>If there are no <span class="tag tag-red">RED</span> wires, cut the 2nd wire.</li>
+        <li>Otherwise, if the last wire is <span class="tag tag-white">WHITE</span>, cut the last wire.</li>
+        <li>Otherwise, if there is more than one <span class="tag tag-blue">BLUE</span> wire, cut the last blue wire.</li>
+        <li>Otherwise, cut the last wire.</li>
+      </ul>
 
-    <h3>Releasing a Held Button:</h3>
-    <p>When you hold the button down, a colored indicator strip will light up on the right side of the module. Release the button based on the color of this strip:</p>
-    <ul>
-      <li><strong>Blue strip:</strong> Release when the countdown timer has a <strong>"4"</strong> in any position.</li>
-      <li><strong>White strip:</strong> Release when the countdown timer has a <strong>"1"</strong> in any position.</li>
-      <li><strong>Yellow strip:</strong> Release when the countdown timer has a <strong>"5"</strong> in any position.</li>
-      <li><strong>Any other strip color:</strong> Release when the countdown timer has a <strong>"1"</strong> in any position.</li>
-    </ul>
+      <h3>4 Wires</h3>
+      <ul>
+        <li>If there is more than one <span class="tag tag-red">RED</span> wire and the last digit of the Serial Number is ODD, cut the last red wire.</li>
+        <li>Otherwise, if the last wire is <span class="tag tag-yellow">YELLOW</span> and there are no red wires, cut the 1st wire.</li>
+        <li>Otherwise, if there is exactly one <span class="tag tag-blue">BLUE</span> wire, cut the 1st wire.</li>
+        <li>Otherwise, if there is more than one yellow wire, cut the last wire.</li>
+        <li>Otherwise, cut the 2nd wire.</li>
+      </ul>
 
-    <!-- MODULE 3: KEYPAD GLYPHS -->
-    <h2>Module 3: Keypads (คีย์แพดสัญลักษณ์)</h2>
-    <p>A keypad module features 4 buttons with symbols. Exactly <strong>ONE</strong> of the columns below contains ALL 4 symbols shown on the module. Press the 4 buttons in the order they appear from top to bottom in that matching column:</p>
-    
-    <div class="keypad-columns-container">
-      <!-- COLUMN 1 -->
-      <div class="keypad-column">
-        <div class="column-header">COLUMN 1</div>
-        <div class="keypad-symbol">Ϙ</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">Ψ</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">λ</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">★</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">Ҩ</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">Ω</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">☺</div>
-      </div>
+      <h3>5 Wires</h3>
+      <ul>
+        <li>If the last wire is <span class="tag tag-white">BLACK</span> and the last digit of Serial Number is ODD, cut the 4th wire.</li>
+        <li>Otherwise, if there is exactly one <span class="tag tag-red">RED</span> wire and more than one yellow wire, cut the 1st wire.</li>
+        <li>Otherwise, if there are no black wires, cut the 2nd wire.</li>
+        <li>Otherwise, cut the 1st wire.</li>
+      </ul>
+    </section>
 
-      <!-- COLUMN 2 -->
-      <div class="keypad-column">
-        <div class="column-header">COLUMN 2</div>
-        <div class="keypad-symbol">Ϡ</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">Ϙ</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">϶</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">Ҁ</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">★</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">Ͽ</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">¶</div>
-      </div>
+    <!-- 02. THE BUTTON -->
+    <section id="sec-button">
+      <h2>02. THE BUTTON</h2>
+      <p>Follow the initial rules to either <strong>TAP</strong> (press & quick release < 0.4s) or <strong>HOLD</strong> the button.</p>
 
-      <!-- COLUMN 3 -->
-      <div class="keypad-column">
-        <div class="column-header">COLUMN 3</div>
-        <div class="keypad-symbol">©</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">Ѭ</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">Ҁ</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">Җ</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">Ѯ</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">λ</div>
-        <div class="arrow-down">↓</div>
-        <div class="keypad-symbol">϶</div>
-      </div>
-    <!-- MODULE 4: SIMON SAYS -->
-    <h2>Module 4: Simon Says (ถอดรหัสไฟกะพริบ)</h2>
-    <p>Look at the color sequence flashing on the module. Press the button corresponding to the mapped color based on whether the <strong>Serial Number contains a Vowel (A, E, I, O, U)</strong> and the current number of <strong>Strikes</strong>:</p>
-    
-    <h3>Serial Number HAS a Vowel (มีสระ):</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Flash Color</th>
-          <th>0 Strikes</th>
-          <th>1 Strike</th>
-          <th>2 Strikes</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong style="color: #dc2626;">Red</strong></td>
-          <td>Blue</td>
-          <td>Yellow</td>
-          <td>Green</td>
-        </tr>
-        <tr>
-          <td><strong style="color: #2563eb;">Blue</strong></td>
-          <td>Red</td>
-          <td>Green</td>
-          <td>Red</td>
-        </tr>
-        <tr>
-          <td><strong style="color: #16a34a;">Green</strong></td>
-          <td>Yellow</td>
-          <td>Blue</td>
-          <td>Yellow</td>
-        </tr>
-        <tr>
-          <td><strong style="color: #ca8a04;">Yellow</strong></td>
-          <td>Green</td>
-          <td>Red</td>
-          <td>Blue</td>
-        </tr>
-      </tbody>
-    </table>
+      <h3>Initial Action:</h3>
+      <ol>
+        <li>If button is <span class="tag tag-blue">BLUE</span> and reads <strong>"Abort"</strong> -> <strong>HOLD</strong>.</li>
+        <li>If reads <strong>"Detonate"</strong> -> <strong>TAP</strong>.</li>
+        <li>If there is a lit indicator labeled <strong>CAR</strong> and batteries >= 2 -> <strong>TAP</strong>.</li>
+        <li>If button is <span class="tag tag-white">WHITE</span> and batteries >= 2 -> <strong>TAP</strong>.</li>
+        <li>Otherwise -> <strong>HOLD</strong>.</li>
+      </ol>
 
-    <h3>Serial Number DOES NOT HAVE a Vowel (ไม่มีสระ):</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Flash Color</th>
-          <th>0 Strikes</th>
-          <th>1 Strike</th>
-          <th>2 Strikes</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong style="color: #dc2626;">Red</strong></td>
-          <td>Blue</td>
-          <td>Red</td>
-          <td>Yellow</td>
-        </tr>
-        <tr>
-          <td><strong style="color: #2563eb;">Blue</strong></td>
-          <td>Yellow</td>
-          <td>Blue</td>
-          <td>Green</td>
-        </tr>
-        <tr>
-          <td><strong style="color: #16a34a;">Green</strong></td>
-          <td>Green</td>
-          <td>Yellow</td>
-          <td>Blue</td>
-        </tr>
-        <tr>
-          <td><strong style="color: #ca8a04;">Yellow</strong></td>
-          <td>Red</td>
-          <td>Green</td>
-          <td>Red</td>
-        </tr>
-      </tbody>
-    </table>
+      <h3>If HOLDING the button:</h3>
+      <p>Hold the button down until a colored strip lights up on the right side. Release when the countdown timer has the specified digit in <strong>ANY</strong> position:</p>
+      <ul>
+        <li><span class="tag tag-blue">BLUE Strip:</span> Release when timer contains <strong>4</strong>.</li>
+        <li><span class="tag tag-white">WHITE Strip:</span> Release when timer contains <strong>1</strong>.</li>
+        <li><span class="tag tag-yellow">YELLOW Strip:</span> Release when timer contains <strong>5</strong>.</li>
+        <li>Any Other Color Strip: Release when timer contains <strong>1</strong>.</li>
+      </ul>
+    </section>
 
-  </div>
+    <!-- 03. KEYPAD -->
+    <section id="sec-keypad">
+      <h2>03. KEYPAD SYMBOLS</h2>
+      <p>Press the 4 symbols on the keypad in order from top to bottom as they appear in one of the columns below:</p>
 
+      <table>
+        <thead>
+          <tr>
+            <th>Column 1</th>
+            <th>Column 2</th>
+            <th>Column 3</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Ϙ (Balloon)</td><td>Ϡ (AT)</td><td>© (Copyright)</td></tr>
+          <tr><td>Ψ (Pitchfork)</td><td>Ϙ (Balloon)</td><td>Ѭ (C-Loop)</td></tr>
+          <tr><td>λ (Lambda)</td><td>϶ (Reverse K)</td><td>Ҁ (C-Dot)</td></tr>
+          <tr><td>★ (Star)</td><td>Ҁ (C-Dot)</td><td>Җ (Double K)</td></tr>
+          <tr><td>Ҩ (Squiggle)</td><td>★ (Star)</td><td>Ѯ (XI)</td></tr>
+          <tr><td>Ω (Omega)</td><td>Ͽ (Question Mark)</td><td>λ (Lambda)</td></tr>
+          <tr><td>☺ (Smiley)</td><td>¶ (Paragraph)</td><td>϶ (Reverse K)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 04. SIMON SAYS -->
+    <section id="sec-simon">
+      <h2>04. SIMON SAYS</h2>
+      <p>Look at flashing colors and press mapped buttons based on Serial Vowels and Strike count:</p>
+
+      <h3>Serial Number Has Vowel (A, E, I, O, U)</h3>
+      <table>
+        <thead>
+          <tr><th>Flash</th><th>0 Strikes</th><th>1 Strike</th><th>2+ Strikes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>RED</td><td>BLUE</td><td>YELLOW</td><td>GREEN</td></tr>
+          <tr><td>BLUE</td><td>RED</td><td>GREEN</td><td>RED</td></tr>
+          <tr><td>GREEN</td><td>YELLOW</td><td>BLUE</td><td>YELLOW</td></tr>
+          <tr><td>YELLOW</td><td>GREEN</td><td>RED</td><td>BLUE</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Serial Number NO Vowel</h3>
+      <table>
+        <thead>
+          <tr><th>Flash</th><th>0 Strikes</th><th>1 Strike</th><th>2+ Strikes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>RED</td><td>BLUE</td><td>RED</td><td>YELLOW</td></tr>
+          <tr><td>BLUE</td><td>YELLOW</td><td>BLUE</td><td>GREEN</td></tr>
+          <tr><td>GREEN</td><td>GREEN</td><td>YELLOW</td><td>BLUE</td></tr>
+          <tr><td>YELLOW</td><td>RED</td><td>GREEN</td><td>RED</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 05. MORSE CODE -->
+    <section id="sec-morse">
+      <h2>05. MORSE CODE</h2>
+      <p>Interpret the flashing light on the Morse module. The light flashes a word in Morse code repeatedly. Tune frequency and press <strong>SUBMIT</strong>.</p>
+
+      <table>
+        <thead>
+          <tr><th>Word</th><th>Frequency (MHz)</th><th>Word</th><th>Frequency (MHz)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>shell</td><td>3.505 MHz</td><td>flick</td><td>3.555 MHz</td></tr>
+          <tr><td>halls</td><td>3.515 MHz</td><td>bombs</td><td>3.565 MHz</td></tr>
+          <tr><td>slick</td><td>3.522 MHz</td><td>break</td><td>3.572 MHz</td></tr>
+          <tr><td>trick</td><td>3.532 MHz</td><td>brick</td><td>3.575 MHz</td></tr>
+          <tr><td>boxes</td><td>3.535 MHz</td><td>steak</td><td>3.582 MHz</td></tr>
+          <tr><td>leaks</td><td>3.542 MHz</td><td>sting</td><td>3.592 MHz</td></tr>
+          <tr><td>strobe</td><td>3.545 MHz</td><td>vector</td><td>3.595 MHz</td></tr>
+          <tr><td>bistro</td><td>3.552 MHz</td><td>beats</td><td>3.600 MHz</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 06. MEMORY MODULE -->
+    <section id="sec-memory">
+      <h2>06. MEMORY MODULE</h2>
+      <p>Follow the rules for each stage (1 through 5). Record display digits, pressed button positions (1-4 left to right), and pressed button labels (1-4).</p>
+
+      <table>
+        <thead>
+          <tr><th>Stage</th><th>Display 1</th><th>Display 2</th><th>Display 3</th><th>Display 4</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Stage 1</strong></td>
+            <td>Press pos 2</td>
+            <td>Press pos 2</td>
+            <td>Press pos 3</td>
+            <td>Press pos 4</td>
+          </tr>
+          <tr>
+            <td><strong>Stage 2</strong></td>
+            <td>Press label "4"</td>
+            <td>Press same pos as Stage 1</td>
+            <td>Press pos 1</td>
+            <td>Press same pos as Stage 1</td>
+          </tr>
+          <tr>
+            <td><strong>Stage 3</strong></td>
+            <td>Press same label as Stage 2</td>
+            <td>Press same label as Stage 1</td>
+            <td>Press pos 3</td>
+            <td>Press label "4"</td>
+          </tr>
+          <tr>
+            <td><strong>Stage 4</strong></td>
+            <td>Press same pos as Stage 1</td>
+            <td>Press pos 1</td>
+            <td>Press same pos as Stage 2</td>
+            <td>Press same pos as Stage 2</td>
+          </tr>
+          <tr>
+            <td><strong>Stage 5</strong></td>
+            <td>Press same label as Stage 1</td>
+            <td>Press same label as Stage 2</td>
+            <td>Press same label as Stage 4</td>
+            <td>Press same label as Stage 3</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
 </body>
 </html>

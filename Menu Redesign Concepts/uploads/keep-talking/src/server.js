@@ -256,124 +256,6 @@ function generateSimonModule() {
   };
 }
 
-const MORSE_DICTIONARY = [
-  { word: 'shell', freq: '3.505' },
-  { word: 'halls', freq: '3.515' },
-  { word: 'slick', freq: '3.522' },
-  { word: 'trick', freq: '3.532' },
-  { word: 'boxes', freq: '3.535' },
-  { word: 'leaks', freq: '3.542' },
-  { word: 'strobe', freq: '3.545' },
-  { word: 'bistro', freq: '3.552' },
-  { word: 'flick', freq: '3.555' },
-  { word: 'bombs', freq: '3.565' },
-  { word: 'break', freq: '3.572' },
-  { word: 'brick', freq: '3.575' },
-  { word: 'steak', freq: '3.582' },
-  { word: 'sting', freq: '3.592' },
-  { word: 'vector', freq: '3.595' },
-  { word: 'beats', freq: '3.600' }
-];
-
-const MORSE_CODE_MAP = {
-  a: '.-', b: '-...', c: '-.-.', d: '-..', e: '.', f: '..-.',
-  g: '--.', h: '....', i: '..', j: '.---', k: '-.-', l: '.-..',
-  m: '--', n: '-.', o: '---', p: '.--.', q: '--.-', r: '.-.',
-  s: '...', t: '-', u: '..-', v: '...-', w: '.--', x: '-..-',
-  y: '-.--', z: '--..'
-};
-
-function generateMorseModule() {
-  const item = MORSE_DICTIONARY[Math.floor(Math.random() * MORSE_DICTIONARY.length)];
-  const morsePattern = item.word.split('').map(char => MORSE_CODE_MAP[char] || '').join(' ');
-  return {
-    type: 'morse',
-    word: item.word,
-    targetFreq: item.freq,
-    morsePattern,
-    currentFreq: '3.505',
-    solved: false
-  };
-}
-
-function generateMemoryStageData() {
-  const displayDigit = Math.floor(Math.random() * 4) + 1; // 1 to 4
-  const labels = [1, 2, 3, 4].sort(() => Math.random() - 0.5);
-  return { displayDigit, labels };
-}
-
-function generateMemoryModule() {
-  const stages = [];
-  for (let i = 0; i < 5; i++) {
-    stages.push(generateMemoryStageData());
-  }
-
-  return {
-    type: 'memory',
-    stage: 1,
-    stages,
-    history: [],
-    solved: false
-  };
-}
-
-function getMemoryCorrectAction(stage, displayDigit, currentLabels, history) {
-  if (stage === 1) {
-    if (displayDigit === 1) return { type: 'pos', val: 2 };
-    if (displayDigit === 2) return { type: 'pos', val: 2 };
-    if (displayDigit === 3) return { type: 'pos', val: 3 };
-    if (displayDigit === 4) return { type: 'pos', val: 4 };
-  } else if (stage === 2) {
-    if (displayDigit === 1) return { type: 'label', val: 4 };
-    if (displayDigit === 2) return { type: 'pos', val: history[0].pressedPos };
-    if (displayDigit === 3) return { type: 'pos', val: 1 };
-    if (displayDigit === 4) return { type: 'pos', val: history[0].pressedPos };
-  } else if (stage === 3) {
-    if (displayDigit === 1) return { type: 'label', val: history[1].pressedLabel };
-    if (displayDigit === 2) return { type: 'label', val: history[0].pressedLabel };
-    if (displayDigit === 3) return { type: 'pos', val: 3 };
-    if (displayDigit === 4) return { type: 'label', val: 4 };
-  } else if (stage === 4) {
-    if (displayDigit === 1) return { type: 'pos', val: history[0].pressedPos };
-    if (displayDigit === 2) return { type: 'pos', val: 1 };
-    if (displayDigit === 3) return { type: 'pos', val: history[1].pressedPos };
-    if (displayDigit === 4) return { type: 'pos', val: history[1].pressedPos };
-  } else if (stage === 5) {
-    if (displayDigit === 1) return { type: 'label', val: history[0].pressedLabel };
-    if (displayDigit === 2) return { type: 'label', val: history[1].pressedLabel };
-    if (displayDigit === 3) return { type: 'label', val: history[3].pressedLabel };
-    if (displayDigit === 4) return { type: 'label', val: history[2].pressedLabel };
-  }
-  return { type: 'label', val: 1 };
-}
-
-function calculateDebrief(room, result) {
-  const duration = room.timer.duration;
-  const timeRemaining = room.timer.timeLeft;
-  const timeTaken = duration - timeRemaining;
-  const strikes = room.timer.strikes;
-  const ratio = timeRemaining / duration;
-
-  let rank = 'F';
-  if (result === 'defused') {
-    if (strikes === 0 && ratio >= 0.5) rank = 'S';
-    else if (strikes <= 1 && ratio >= 0.3) rank = 'A';
-    else if (strikes <= 1 && ratio >= 0.15) rank = 'B';
-    else rank = 'C';
-  }
-
-  return {
-    result,
-    rank,
-    timeTaken,
-    timeRemaining,
-    strikes,
-    maxStrikes: room.timer.maxStrikes,
-    difficulty: room.difficulty,
-    modulesCount: room.bombConfig ? room.bombConfig.modules.length : 0
-  };
-}
-
 function generateIndicators() {
   const possible = ['CAR', 'FRK', 'SND', 'CLR'];
   const count = Math.floor(Math.random() * 2) + 1; // 1 or 2 indicators
@@ -408,9 +290,7 @@ function generateBombConfig(difficulty = 'medium') {
     () => generateWiresModule(serialNumber),
     () => generateButtonModule(batteries, indicators),
     () => generateKeypadModule(),
-    () => generateSimonModule(),
-    () => generateMorseModule(),
-    () => generateMemoryModule()
+    () => generateSimonModule()
   ];
 
   const modules = [];
@@ -475,8 +355,7 @@ function checkBombStatus(roomCode) {
   if (allSolved) {
     room.gameStatus = 'defused';
     if (room.timerTimeout) clearTimeout(room.timerTimeout);
-    const debrief = calculateDebrief(room, 'defused');
-    io.to(roomCode).emit('game-defused', { timeLeft: room.timer.timeLeft, debrief });
+    io.to(roomCode).emit('game-defused', { timeLeft: room.timer.timeLeft });
   }
 }
 
@@ -491,8 +370,7 @@ function registerStrike(roomCode) {
   if (room.timer.strikes >= room.timer.maxStrikes) {
     room.gameStatus = 'exploded';
     if (room.timerTimeout) clearTimeout(room.timerTimeout);
-    const debrief = calculateDebrief(room, 'exploded');
-    io.to(roomCode).emit('game-over', { reason: 'strikes', strikes: room.timer.strikes, debrief });
+    io.to(roomCode).emit('game-over', { reason: 'strikes', strikes: room.timer.strikes });
   } else {
     // Restart timer tick to apply speed-up immediately
     startTimer(roomCode);
@@ -622,17 +500,6 @@ io.on('connection', (socket) => {
             return { type: 'keypad', symbols: m.symbols, solved: false, index: idx };
           } else if (m.type === 'simon') {
             return { type: 'simon', sequence: m.sequence, stage: m.stage, solved: false, index: idx };
-          } else if (m.type === 'morse') {
-            return { type: 'morse', morsePattern: m.morsePattern, targetFreq: m.targetFreq, solved: false, index: idx };
-          } else if (m.type === 'memory') {
-            return {
-              type: 'memory',
-              stage: m.stage,
-              displayDigit: m.stages[0].displayDigit,
-              labels: m.stages[0].labels,
-              solved: false,
-              index: idx
-            };
           }
         })
       },
@@ -773,89 +640,6 @@ io.on('connection', (socket) => {
       simonModule.stepInput = [];
       registerStrike(currentRoomCode);
       io.to(currentRoomCode).emit('simon-reset', { moduleIndex, stage: simonModule.stage });
-    }
-  });
-
-  // Submit Morse Frequency
-  socket.on('submit-morse', (data) => {
-    const room = rooms.get(currentRoomCode);
-    if (!room || room.gameStatus !== 'playing') return;
-
-    const moduleIndex = data.moduleIndex ?? 0;
-    const submittedFreq = String(data.frequency || '').trim();
-
-    const morseModule = room.bombConfig.modules[moduleIndex];
-    if (!morseModule || morseModule.type !== 'morse' || morseModule.solved) return;
-
-    if (submittedFreq === morseModule.targetFreq) {
-      morseModule.solved = true;
-      io.to(currentRoomCode).emit('module-solved', { type: 'morse', moduleIndex });
-      checkBombStatus(currentRoomCode);
-    } else {
-      registerStrike(currentRoomCode);
-    }
-  });
-
-  // Press Memory Button
-  socket.on('press-memory', (data) => {
-    const room = rooms.get(currentRoomCode);
-    if (!room || room.gameStatus !== 'playing') return;
-
-    const moduleIndex = data.moduleIndex ?? 0;
-    const buttonPos = data.buttonPos; // 1 to 4
-
-    const memModule = room.bombConfig.modules[moduleIndex];
-    if (!memModule || memModule.type !== 'memory' || memModule.solved) return;
-
-    const currentStage = memModule.stage;
-    const currentStageData = memModule.stages[currentStage - 1];
-    const displayDigit = currentStageData.displayDigit;
-    const currentLabels = currentStageData.labels;
-    const pressedLabel = currentLabels[buttonPos - 1];
-
-    const rule = getMemoryCorrectAction(currentStage, displayDigit, currentLabels, memModule.history);
-    let isCorrect = false;
-
-    if (rule.type === 'pos') {
-      isCorrect = (buttonPos === rule.val);
-    } else if (rule.type === 'label') {
-      isCorrect = (pressedLabel === rule.val);
-    }
-
-    if (isCorrect) {
-      memModule.history[currentStage - 1] = {
-        stage: currentStage,
-        displayDigit,
-        pressedPos: buttonPos,
-        pressedLabel
-      };
-
-      if (currentStage === 5) {
-        memModule.solved = true;
-        io.to(currentRoomCode).emit('module-solved', { type: 'memory', moduleIndex });
-        checkBombStatus(currentRoomCode);
-      } else {
-        memModule.stage += 1;
-        const nextStageData = memModule.stages[memModule.stage - 1];
-        io.to(currentRoomCode).emit('memory-stage-advance', {
-          moduleIndex,
-          stage: memModule.stage,
-          displayDigit: nextStageData.displayDigit,
-          labels: nextStageData.labels
-        });
-      }
-    } else {
-      // Wrong press: Reset stage back to 1 and register strike
-      memModule.stage = 1;
-      memModule.history = [];
-      registerStrike(currentRoomCode);
-      const resetStageData = memModule.stages[0];
-      io.to(currentRoomCode).emit('memory-reset', {
-        moduleIndex,
-        stage: 1,
-        displayDigit: resetStageData.displayDigit,
-        labels: resetStageData.labels
-      });
     }
   });
 

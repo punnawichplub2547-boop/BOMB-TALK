@@ -16,7 +16,6 @@
   <div class="dust-particles"></div>
   <div class="crt-scanlines"></div>
   <div class="crt-flicker"></div>
-  <div id="emergency-red-overlay"></div>
   <div id="explosion-flash"></div>
 
   <div id="app">
@@ -164,8 +163,6 @@
             <div class="meta-badge"><span class="meta-lbl">SN</span> <span id="meta-serial" class="meta-val">-------</span></div>
             <div class="meta-badge"><span class="meta-lbl">BATT</span> <span id="meta-batteries" class="meta-val">-</span></div>
           </div>
-
-          <button class="btn danger quit-btn btn-quit-game" style="margin-left: auto;">[ ABORT MISSION ]</button>
         </div>
 
         <div id="canvas-container"></div>
@@ -196,7 +193,6 @@
                 </div>
               </div>
               <a href="manual.html" target="_blank" class="btn secondary manual-pop-btn">[ POP OUT MANUAL ]</a>
-              <button class="btn danger quit-btn btn-quit-game">[ ABORT MISSION ]</button>
             </div>
           </div>
 
@@ -205,6 +201,8 @@
           </div>
         </div>
       </div>
+
+      <button id="btn-quit-game" class="btn danger quit-btn">[ ABORT MISSION ]</button>
     </div>
 
     <!-- MODALS -->
@@ -218,24 +216,7 @@
           <span class="status-warning">CRITICAL FAILURE</span>
           <h1 class="modal-title">DETONATED</h1>
           <p id="game-over-reason">The bomb exploded due to time running out.</p>
-
-          <div class="debrief-container">
-            <div class="rank-badge-wrapper">
-              <div class="rank-badge rank-F">F</div>
-            </div>
-            <div class="debrief-grid">
-              <div class="debrief-item">
-                <span class="debrief-label">WIN STREAK</span>
-                <span class="debrief-val" id="over-streak">0</span>
-              </div>
-              <div class="debrief-item">
-                <span class="debrief-label">STRIKES</span>
-                <span class="debrief-val" id="over-strikes">X / X</span>
-              </div>
-            </div>
-          </div>
-
-          <button class="btn primary btn-restart" style="margin-top:20px;">[ RETURN TO LOBBY ]</button>
+          <button class="btn primary btn-restart">[ RETURN TO LOBBY ]</button>
         </div>
       </div>
     </div>
@@ -250,24 +231,7 @@
           <span class="status-success">MISSION ACCOMPLISHED</span>
           <h1 class="modal-title">BOMB DEFUSED</h1>
           <p>Device neutralized with <span id="defused-time-left">0:00</span> remaining on the clock.</p>
-
-          <div class="debrief-container">
-            <div class="rank-badge-wrapper">
-              <div class="rank-badge rank-S" id="defused-rank-badge">S</div>
-            </div>
-            <div class="debrief-grid">
-              <div class="debrief-item">
-                <span class="debrief-label">TIME ELAPSED</span>
-                <span class="debrief-val" id="defused-time-taken">00:00</span>
-              </div>
-              <div class="debrief-item">
-                <span class="debrief-label">CURRENT WIN STREAK</span>
-                <span class="debrief-val" id="defused-streak">1</span>
-              </div>
-            </div>
-          </div>
-
-          <button class="btn primary btn-restart" style="margin-top:20px;">[ RETURN TO LOBBY ]</button>
+          <button class="btn primary btn-restart">[ RETURN TO LOBBY ]</button>
         </div>
       </div>
     </div>

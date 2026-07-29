@@ -57,60 +57,6 @@ function getAudioContext() {
   return audioCtx;
 }
 
-function playTerminalKeyClick(isEnterKey = false) {
-  try {
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-
-    // 1. High-frequency crisp mechanical switch snap (noise transient)
-    const bufferSize = Math.floor(ctx.sampleRate * 0.015);
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.22));
-    }
-    const noise = ctx.createBufferSource();
-    noise.buffer = buffer;
-
-    const noiseFilter = ctx.createBiquadFilter();
-    noiseFilter.type = 'bandpass';
-    const centerFreq = isEnterKey ? 2200 : 3400;
-    noiseFilter.frequency.setValueAtTime(centerFreq, now);
-    noiseFilter.Q.setValueAtTime(2.5, now);
-
-    const noiseGain = ctx.createGain();
-    const vol = isEnterKey ? 0.45 : 0.32;
-    noiseGain.gain.setValueAtTime(vol, now);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
-
-    noise.connect(noiseFilter);
-    noiseFilter.connect(noiseGain);
-    noiseGain.connect(ctx.destination);
-    noise.start(now);
-
-    // 2. Low resonant keycap body thock (pitch drop)
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = isEnterKey ? 'sawtooth' : 'triangle';
-    const startFreq = isEnterKey ? 500 : 780;
-    const endFreq = isEnterKey ? 120 : 180;
-    osc.frequency.setValueAtTime(startFreq, now);
-    osc.frequency.exponentialRampToValueAtTime(endFreq, now + 0.028);
-
-    gain.gain.setValueAtTime(isEnterKey ? 0.35 : 0.25, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.028);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.028);
-
-  } catch (e) {
-    console.warn('Terminal click sound error:', e);
-  }
-}
-
 function playSynthSound(type) {
   try {
     const ctx = getAudioContext();
@@ -130,7 +76,17 @@ function playSynthSound(type) {
       osc.start(now);
       osc.stop(now + 0.03);
     } else if (type === 'click') {
-      playTerminalKeyClick(false);
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(1200, now);
+      osc.frequency.exponentialRampToValueAtTime(300, now + 0.05);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.05);
     } else if (type === 'strike') {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -261,13 +217,11 @@ const moduleStatusLights = []; // array of { mesh, type, index } to light up gre
 // ----------------------------------------------------
 
 btnCreateRoom.addEventListener('click', () => {
-  playSound(sndClick, 'click');
   const name = usernameInput.value.trim() || 'OPERATOR_A';
   socket.emit('create-room', name);
 });
 
 btnJoinRoom.addEventListener('click', () => {
-  playSound(sndClick, 'click');
   const code = roomCodeInput.value.trim().toUpperCase();
   const name = usernameInput.value.trim() || 'OPERATOR_B';
   if (code.length === 4) {
@@ -277,36 +231,9 @@ btnJoinRoom.addEventListener('click', () => {
   }
 });
 
-if (roomCodeInput) {
-  roomCodeInput.addEventListener('input', () => {
-    roomCodeInput.value = roomCodeInput.value.toUpperCase();
-  });
-  roomCodeInput.addEventListener('keydown', (e) => {
-    playTerminalKeyClick(e.key === 'Enter');
-    if (e.key === 'Enter') {
-      btnJoinRoom.click();
-    }
-  });
-}
-
-if (usernameInput) {
-  usernameInput.addEventListener('keydown', (e) => {
-    playTerminalKeyClick(e.key === 'Enter');
-    if (e.key === 'Enter') {
-      const code = roomCodeInput.value.trim();
-      if (code.length === 4) {
-        btnJoinRoom.click();
-      } else {
-        btnCreateRoom.click();
-      }
-    }
-  });
-}
-
 let currentDifficulty = 'medium';
 
 window.selectDifficulty = function(diff) {
-  playSound(sndClick, 'click');
   socket.emit('select-difficulty', diff);
 };
 
@@ -322,20 +249,10 @@ function updateLobbyUI(code, players, difficulty = 'medium') {
     const li = document.createElement('li');
     li.innerHTML = `
       <span>${p.name} ${p.id === socket.id ? '<strong>(You)</strong>' : ''}</span>
-      <span class="player-role ${p.role === 'defuser' ? 'role-defuser' : 'role-expert'}">[${p.role.toUpperCase()}]</span>
+      <span class="player-role ${p.role === 'defuser' ? 'role-defuser' : 'role-expert'}">${p.role}</span>
     `;
     playersList.appendChild(li);
   });
-
-  // Highlight active role card for current player
-  const me = players.find(p => p.id === socket.id);
-  if (me) {
-    currentRole = me.role;
-  }
-  const defEl = document.getElementById('role-defuser');
-  const expEl = document.getElementById('role-expert');
-  if (defEl) defEl.classList.toggle('active', currentRole === 'defuser');
-  if (expEl) expEl.classList.toggle('active', currentRole === 'expert');
 
   // Highlight active difficulty card
   ['easy', 'medium', 'hard', 'hardcore'].forEach(d => {
@@ -357,22 +274,17 @@ function updateLobbyUI(code, players, difficulty = 'medium') {
 }
 
 window.selectRole = function(role) {
-  playSound(sndClick, 'click');
   socket.emit('select-role', role);
 };
 
 btnStartGame.addEventListener('click', () => {
-  playSound(sndClick, 'click');
   socket.emit('start-game');
 });
 
-document.querySelectorAll('.btn-quit-game').forEach(btn => {
-  btn.addEventListener('click', () => {
-    playSound(sndClick, 'click');
-    if (confirm('Are you sure you want to abort the mission?')) {
-      window.location.reload();
-    }
-  });
+btnQuitGame.addEventListener('click', () => {
+  if (confirm('Are you sure you want to abort the mission?')) {
+    window.location.reload();
+  }
 });
 
 btnRestarts.forEach((btn, idx) => {
@@ -503,8 +415,6 @@ socket.on('game-started', ({ bombConfig, timer }) => {
   }
 });
 
-let winStreak = parseInt(localStorage.getItem('bomb_talk_streak') || '0', 10);
-
 socket.on('timer-update', ({ timeLeft, strikes }) => {
   const formatted = formatTime(timeLeft);
   if (currentRole === 'defuser') {
@@ -515,24 +425,6 @@ socket.on('timer-update', ({ timeLeft, strikes }) => {
   
   // Tick sound
   playSound(sndTick, 'tick');
-
-  // Low-timer emergency red alert (< 60s or 1+ strikes)
-  const redOverlay = document.getElementById('emergency-red-overlay');
-  if (redOverlay) {
-    if (timeLeft <= 60 || strikes >= 1) {
-      redOverlay.classList.add('active');
-    } else {
-      redOverlay.classList.remove('active');
-    }
-  }
-
-  if (scene && scene.userData && scene.userData.alarmLight) {
-    if (timeLeft <= 60 || strikes >= 1) {
-      scene.userData.alarmLight.intensity = Math.sin(Date.now() * 0.01) * 3.0 + 3.0;
-    } else {
-      scene.userData.alarmLight.intensity = 0;
-    }
-  }
 });
 
 socket.on('strike', ({ strikes }) => {
@@ -565,10 +457,6 @@ socket.on('module-solved', ({ type, moduleIndex }) => {
     clearInterval(simonIntervals[moduleIndex]);
     delete simonIntervals[moduleIndex];
   }
-  if (type === 'morse' && morseIntervals[moduleIndex]) {
-    clearInterval(morseIntervals[moduleIndex]);
-    delete morseIntervals[moduleIndex];
-  }
   playSound(sndClick, 'click');
 });
 
@@ -582,68 +470,16 @@ socket.on('simon-reset', ({ moduleIndex, stage }) => {
   startSimonLoop(moduleIndex, stage);
 });
 
-socket.on('memory-stage-advance', ({ moduleIndex, stage, displayDigit, labels }) => {
-  playSound(sndClick, 'click');
-  const state = memoryState[moduleIndex];
-  if (state && state.group) {
-    state.stage = stage;
-    state.displayDigit = displayDigit;
-    state.labels = labels;
-    updateMemoryModuleVisuals(state.group, stage, displayDigit, labels);
-  }
-});
-
-socket.on('memory-reset', ({ moduleIndex, stage, displayDigit, labels }) => {
-  playSound(sndStrike, 'strike');
-  const state = memoryState[moduleIndex];
-  if (state && state.group) {
-    state.stage = stage;
-    state.displayDigit = displayDigit;
-    state.labels = labels;
-    updateMemoryModuleVisuals(state.group, stage, displayDigit, labels);
-  }
-});
-
-socket.on('game-defused', ({ timeLeft, debrief }) => {
+socket.on('game-defused', ({ timeLeft }) => {
   playSound(sndDefused, 'defused');
   defusedTimeLeft.textContent = formatTime(timeLeft);
-  
-  winStreak++;
-  localStorage.setItem('bomb_talk_streak', winStreak.toString());
-
-  const rankEl = document.getElementById('defused-rank-badge');
-  if (rankEl && debrief) {
-    rankEl.textContent = debrief.rank || 'S';
-    rankEl.className = `rank-badge rank-${debrief.rank || 'S'}`;
-  }
-  const takenEl = document.getElementById('defused-time-taken');
-  if (takenEl && debrief) {
-    takenEl.textContent = formatTime(debrief.timeTaken || 0);
-  }
-  const streakEl = document.getElementById('defused-streak');
-  if (streakEl) {
-    streakEl.textContent = winStreak.toString();
-  }
-
-  const redOverlay = document.getElementById('emergency-red-overlay');
-  if (redOverlay) redOverlay.classList.remove('active');
-
   gameDefusedModal.classList.add('active');
 });
 
-socket.on('game-over', ({ reason, strikes, debrief }) => {
+socket.on('game-over', ({ reason, strikes }) => {
   playSound(sndExplosion, 'explosion');
   updateStrikesDisplay(strikes);
-
-  winStreak = 0;
-  localStorage.setItem('bomb_talk_streak', '0');
-
-  const overStreakEl = document.getElementById('over-streak');
-  if (overStreakEl) overStreakEl.textContent = '0';
-
-  const overStrikesEl = document.getElementById('over-strikes');
-  if (overStrikesEl) overStrikesEl.textContent = `${strikes} / 3`;
-
+  
   if (currentRole === 'defuser') {
     triggerMassiveExplosion();
   }
@@ -653,10 +489,8 @@ socket.on('game-over', ({ reason, strikes, debrief }) => {
   } else {
     gameOverReason.textContent = "The bomb exploded because maximum strikes were reached.";
   }
-
-  const redOverlay = document.getElementById('emergency-red-overlay');
-  if (redOverlay) redOverlay.classList.remove('active');
   
+  // Delay modal appearance so the full explosion visual/shake can be experienced!
   setTimeout(() => {
     gameOverModal.classList.add('active');
   }, 1250);
@@ -736,16 +570,6 @@ function initThreeJS() {
   fillLight2.position.set(5, 3, 5);
   scene.add(fillLight2);
 
-  // Rim Light Left (Cold Cyber Blue Specular Highlight)
-  const rimLightBlue = new THREE.DirectionalLight(0x38bdf8, 1.8);
-  rimLightBlue.position.set(-6, 5, -5);
-  scene.add(rimLightBlue);
-
-  // Rim Light Right (Warm Amber Glow Specular Highlight)
-  const rimLightAmber = new THREE.DirectionalLight(0xfbbf24, 1.4);
-  rimLightAmber.position.set(6, -4, -4);
-  scene.add(rimLightAmber);
-
   // Red alert flickering light
   const alarmLight = new THREE.PointLight(0xff0000, 0.0, 10);
   alarmLight.position.set(0, 3, 3);
@@ -771,7 +595,6 @@ function clearThreeJS() {
     canvasContainer.innerHTML = '';
   }
   clearAllSimonLoops();
-  clearAllMorseLoops();
   scene = null;
   camera = null;
   renderer = null;
@@ -795,63 +618,8 @@ function onWindowResize() {
 }
 
 // ----------------------------------------------------
-// PROCEDURAL 3D BOMB ASSEMBLY & TEXTURES
+// PROCEDURAL 3D BOMB ASSEMBLY
 // ----------------------------------------------------
-
-function createCarbonFiberTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d');
-
-  ctx.fillStyle = '#0f141c';
-  ctx.fillRect(0, 0, 128, 128);
-
-  ctx.fillStyle = '#1e2633';
-  for (let y = 0; y < 128; y += 8) {
-    for (let x = 0; x < 128; x += 8) {
-      if ((x + y) % 16 === 0) {
-        ctx.fillRect(x, y, 8, 8);
-      }
-    }
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(8, 6);
-  return texture;
-}
-
-function createBrushedMetalTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-
-  ctx.fillStyle = '#333b4d';
-  ctx.fillRect(0, 0, 256, 256);
-
-  // Micro metallic streaks
-  for (let i = 0; i < 600; i++) {
-    const x = Math.random() * 256;
-    const y = Math.random() * 256;
-    const len = 10 + Math.random() * 30;
-    const alpha = 0.03 + Math.random() * 0.07;
-    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + len, y);
-    ctx.stroke();
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(2, 2);
-  return texture;
-}
 
 function createHazardStripeTexture() {
   const canvas = document.createElement('canvas');
@@ -879,6 +647,8 @@ function createHazardStripeTexture() {
   texture.repeat.set(4, 1);
   return texture;
 }
+
+// Spark Particle System handled by dynamic explosion particle engine
 
 function createGlyphTexture(symbol) {
   const canvas = document.createElement('canvas');
@@ -964,36 +734,17 @@ function build3DBomb(bombConfig) {
   if (camera) camera.position.set(0, 0, camDist);
   if (controls) controls.maxDistance = camDist + 4.0;
 
-  // 1. Briefcase Chassis (metallic brushed industrial texture)
+  // 1. Briefcase Chassis (metallic industrial texture with chamfered bevels)
   const chassisGeom = new THREE.BoxGeometry(chassisWidth, 3.6, 1.4);
-  const brushedTex = createBrushedMetalTexture();
   const chassisMat = new THREE.MeshStandardMaterial({
-    color: 0x3d4756,
-    map: brushedTex,
+    color: 0x4d5566,
     roughness: 0.35,
-    metalness: 0.8
+    metalness: 0.75
   });
   const chassis = new THREE.Mesh(chassisGeom, chassisMat);
   chassis.castShadow = true;
   chassis.receiveShadow = true;
   bombGroup.add(chassis);
-
-  // Interior Carbon Fiber Bay Plate
-  const carbonTex = createCarbonFiberTexture();
-  const trayMat = new THREE.MeshStandardMaterial({ map: carbonTex, roughness: 0.8 });
-  const trayMesh = new THREE.Mesh(new THREE.PlaneGeometry(chassisWidth - 0.2, 3.2), trayMat);
-  trayMesh.position.set(0, 0, 0.68);
-  bombGroup.add(trayMesh);
-
-  // Chrome Toggle Latches on Top Edge
-  const latchMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95, roughness: 0.1 });
-  [-chassisWidth * 0.3, chassisWidth * 0.3].forEach(latchX => {
-    const latchBase = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.12), latchMat);
-    latchBase.position.set(latchX, 1.82, 0.4);
-    const latchHandle = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.35, 0.08), latchMat);
-    latchHandle.position.set(latchX, 1.88, 0.44);
-    bombGroup.add(latchBase, latchHandle);
-  });
 
   // Hazard warning tape on top & bottom chassis edges
   const hazardTex = createHazardStripeTexture();
@@ -1031,13 +782,6 @@ function build3DBomb(bombConfig) {
   handle.position.set(0, 1.9, 0);
   bombGroup.add(handle);
 
-  // Internal Ribbon Cable Running Behind Bays
-  const ribbonGeom = new THREE.BoxGeometry(chassisWidth - 0.8, 0.08, 0.02);
-  const ribbonMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.6 });
-  const ribbon = new THREE.Mesh(ribbonGeom, ribbonMat);
-  ribbon.position.set(0, 0, 0.65);
-  bombGroup.add(ribbon);
-
   // 2. Serial Number Stamp on Top Side
   const serialLabelGeom = new THREE.PlaneGeometry(1.4, 0.38);
   const serialTex = createTextTexture(bombConfig.serialNumber, '#d4c5a9', '#111827', 32);
@@ -1047,66 +791,20 @@ function build3DBomb(bombConfig) {
   serialMesh.rotation.x = -Math.PI / 2;
   bombGroup.add(serialMesh);
 
-  // 3. Batteries Compartment on Right Side Panel
-  const batteryGroup = new THREE.Group();
-  batteryGroup.position.set(halfW + 0.01, 0.2, 0);
-  batteryGroup.rotation.y = Math.PI / 2;
+  // 3. Batteries Compartment on Bottom Side
+  const batteryBase = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, 0.4), chassisMat);
+  batteryBase.position.set(1.2, -1.81, 0);
+  batteryBase.rotation.x = Math.PI / 2;
+  bombGroup.add(batteryBase);
 
-  // Battery Pack Housing Base Plate
-  const battHousingMat = new THREE.MeshStandardMaterial({ color: 0x18181b, metalness: 0.8, roughness: 0.3 });
-  const battHolder = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 0.12), battHousingMat);
-  batteryGroup.add(battHolder);
-
-  // Label tag on top of battery pack
-  const battCountStr = String(bombConfig.batteries || 0);
-  const battLabelTex = createTextTexture(`BATT CELL: ${battCountStr}`, '#1f2937', '#facc15', 22);
-  const battLabelMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.1, 0.25),
-    new THREE.MeshStandardMaterial({ map: battLabelTex })
-  );
-  battLabelMesh.position.set(0, 0.42, 0.07);
-  batteryGroup.add(battLabelMesh);
-
-  // Render battery cells inside holder
-  if (bombConfig.batteries > 0) {
-    for (let i = 0; i < bombConfig.batteries; i++) {
-      const cellY = (bombConfig.batteries === 1) ? 0 : (0.18 - (i * 0.36));
-
-      // Black/Copper AA Battery Cylinder Body
-      const battBodyGeom = new THREE.CylinderGeometry(0.09, 0.09, 0.68, 24);
-      const battBodyMat = new THREE.MeshStandardMaterial({ color: 0xd97706, metalness: 0.85, roughness: 0.2 });
-      const battBody = new THREE.Mesh(battBodyGeom, battBodyMat);
-      battBody.rotation.z = Math.PI / 2;
-      battBody.position.set(0, cellY, 0.08);
-
-      // Shiny Silver (+) Cap Nipple
-      const capGeom = new THREE.CylinderGeometry(0.04, 0.04, 0.06, 16);
-      const capMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.95, roughness: 0.1 });
-      const cap = new THREE.Mesh(capGeom, capMat);
-      cap.rotation.z = Math.PI / 2;
-      cap.position.set(0.36, cellY, 0.08);
-
-      // Silver (-) Spring Terminal
-      const springGeom = new THREE.CylinderGeometry(0.06, 0.06, 0.05, 12);
-      const springMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9 });
-      const spring = new THREE.Mesh(springGeom, springMat);
-      spring.rotation.z = Math.PI / 2;
-      spring.position.set(-0.35, cellY, 0.08);
-
-      batteryGroup.add(battBody, cap, spring);
-    }
-  } else {
-    // Empty battery compartment label
-    const emptyTex = createTextTexture('EMPTY HOLDER', '#374151', '#9ca3af', 20);
-    const emptyMesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.0, 0.4),
-      new THREE.MeshStandardMaterial({ map: emptyTex })
-    );
-    emptyMesh.position.set(0, -0.05, 0.07);
-    batteryGroup.add(emptyMesh);
+  for (let i = 0; i < bombConfig.batteries; i++) {
+    const battGeom = new THREE.CylinderGeometry(0.065, 0.065, 0.32);
+    const battMat = new THREE.MeshStandardMaterial({ color: 0xb45309, metalness: 0.85 });
+    const batt = new THREE.Mesh(battGeom, battMat);
+    batt.position.set(0.95 + (i * 0.16), -1.85, 0);
+    batt.rotation.z = Math.PI / 2;
+    bombGroup.add(batt);
   }
-
-  bombGroup.add(batteryGroup);
 
   // 4. Side Indicators (CAR, FRK, SND, CLR)
   if (bombConfig.indicators && bombConfig.indicators.length > 0) {
@@ -1159,21 +857,6 @@ function build3DBomb(bombConfig) {
       r.position.set(rx, ry, 0.71);
       bombGroup.add(r);
     });
-
-    // 4 Corner Screws per bay
-    const screwGeom = new THREE.CylinderGeometry(0.04, 0.04, 0.03, 12);
-    const screwMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.95, roughness: 0.1 });
-    const screwOffsets = [
-      [-0.98, 0.58], [0.98, 0.58],
-      [-0.98, -0.58], [0.98, -0.58]
-    ];
-    screwOffsets.forEach(([sx, sy]) => {
-      const screw = new THREE.Mesh(screwGeom, screwMat);
-      screw.rotation.x = Math.PI / 2;
-      screw.rotation.z = Math.random() * Math.PI;
-      screw.position.set(slotX + sx, slotY + sy, 0.72);
-      bombGroup.add(screw);
-    });
   });
 
   bombConfig.modules.forEach((mod, idx) => {
@@ -1186,10 +869,6 @@ function build3DBomb(bombConfig) {
       assembleKeypadModule(mod, slotX, slotY, idx);
     } else if (mod.type === 'simon') {
       assembleSimonModule(mod, slotX, slotY, idx);
-    } else if (mod.type === 'morse') {
-      assembleMorseModule(mod, slotX, slotY, idx);
-    } else if (mod.type === 'memory') {
-      assembleMemoryModule(mod, slotX, slotY, idx);
     }
   });
 
@@ -1486,204 +1165,6 @@ function assembleSimonModule(mod, posX = 1.3, posY = -0.75, moduleIndex = 0) {
   bombGroup.add(group);
 }
 
-// MORSE CODE MODULE
-const VALID_MORSE_FREQS = [
-  '3.505', '3.515', '3.522', '3.532', '3.535', '3.542', '3.545', '3.552',
-  '3.555', '3.565', '3.572', '3.575', '3.582', '3.592', '3.595', '3.600'
-];
-
-let morseLeds = {};
-let morseIntervals = {};
-let morseState = {};
-
-function clearAllMorseLoops() {
-  Object.keys(morseIntervals).forEach(modIdx => {
-    clearInterval(morseIntervals[modIdx]);
-  });
-  morseIntervals = {};
-  morseLeds = {};
-}
-
-function startMorseLoop(moduleIndex, morsePattern) {
-  if (morseIntervals[moduleIndex]) clearInterval(morseIntervals[moduleIndex]);
-  const units = [];
-  morsePattern.split('').forEach(ch => {
-    if (ch === '.') { units.push(true); }
-    else if (ch === '-') { units.push(true, true, true); }
-    else if (ch === ' ') { units.push(false, false, false); }
-    units.push(false);
-  });
-  units.push(false, false, false, false, false, false, false);
-
-  let step = 0;
-  morseIntervals[moduleIndex] = setInterval(() => {
-    const isLit = units[step % units.length];
-    const ledMesh = morseLeds[moduleIndex];
-    if (ledMesh && ledMesh.material) {
-      ledMesh.material.color.setHex(isLit ? 0xffd166 : 0x111827);
-      ledMesh.material.emissive.setHex(isLit ? 0xf0b429 : 0x000000);
-    }
-    step++;
-  }, 220);
-}
-
-function updateMorseLcdMesh(group, freqStr) {
-  const lcdMesh = group.getObjectByName('morse_lcd_mesh');
-  if (lcdMesh) {
-    const tex = createTextTexture(freqStr + ' MHz', '#0b0d0a', '#f0b429', 24);
-    lcdMesh.material.map = tex;
-    lcdMesh.material.needsUpdate = true;
-  }
-}
-
-function assembleMorseModule(mod, posX = 0, posY = 0.75, moduleIndex = 0) {
-  const group = new THREE.Group();
-  group.position.set(posX, posY, 0.7);
-
-  const plate = new THREE.Mesh(
-    new THREE.BoxGeometry(2.1, 1.35, 0.05),
-    new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.8 })
-  );
-  group.add(plate);
-
-  addStatusLED(group, 0.85, 0.5, 'morse', moduleIndex);
-
-  const morseLedGeom = new THREE.CylinderGeometry(0.1, 0.1, 0.06, 24);
-  const morseLedMat = new THREE.MeshStandardMaterial({ color: 0x111827, emissive: 0x000000, roughness: 0.2 });
-  const morseLed = new THREE.Mesh(morseLedGeom, morseLedMat);
-  morseLed.rotation.x = Math.PI / 2;
-  morseLed.position.set(-0.7, 0.35, 0.04);
-  group.add(morseLed);
-  morseLeds[moduleIndex] = morseLed;
-
-  morseState[moduleIndex] = { freqIdx: 0 };
-  const lcdTex = createTextTexture('3.505 MHz', '#0b0d0a', '#f0b429', 24);
-  const lcdGeom = new THREE.PlaneGeometry(1.0, 0.35);
-  const lcdMat = new THREE.MeshStandardMaterial({ map: lcdTex, roughness: 0.3 });
-  const lcdMesh = new THREE.Mesh(lcdGeom, lcdMat);
-  lcdMesh.name = 'morse_lcd_mesh';
-  lcdMesh.position.set(0.1, 0.35, 0.04);
-  group.add(lcdMesh);
-
-  const btnGeom = new THREE.BoxGeometry(0.35, 0.3, 0.06);
-  const txMinusTex = createTextTexture('TX-', '#374151', '#f9fafb', 26);
-  const txMinusMesh = new THREE.Mesh(btnGeom, new THREE.MeshStandardMaterial({ map: txMinusTex }));
-  txMinusMesh.position.set(-0.5, -0.2, 0.04);
-  txMinusMesh.userData = { isMorseTxMinus: true, moduleIndex, parentGroup: group };
-  group.add(txMinusMesh);
-  interactiveObjects.push(txMinusMesh);
-
-  const txPlusTex = createTextTexture('TX+', '#374151', '#f9fafb', 26);
-  const txPlusMesh = new THREE.Mesh(btnGeom, new THREE.MeshStandardMaterial({ map: txPlusTex }));
-  txPlusMesh.position.set(-0.1, -0.2, 0.04);
-  txPlusMesh.userData = { isMorseTxPlus: true, moduleIndex, parentGroup: group };
-  group.add(txPlusMesh);
-  interactiveObjects.push(txPlusMesh);
-
-  const submitGeom = new THREE.BoxGeometry(0.7, 0.3, 0.06);
-  const submitTex = createTextTexture('SUBMIT', '#065f46', '#ffffff', 22);
-  const submitMesh = new THREE.Mesh(submitGeom, new THREE.MeshStandardMaterial({ map: submitTex }));
-  submitMesh.position.set(0.5, -0.2, 0.04);
-  submitMesh.userData = { isMorseSubmit: true, moduleIndex, parentGroup: group };
-  group.add(submitMesh);
-  interactiveObjects.push(submitMesh);
-
-  bombGroup.add(group);
-
-  startMorseLoop(moduleIndex, mod.morsePattern);
-}
-
-// MEMORY MODULE
-let memoryState = {};
-
-function updateMemoryModuleVisuals(group, stage, displayDigit, labels) {
-  for (let i = 1; i <= 5; i++) {
-    const stageLed = group.getObjectByName(`mem_stage_led_${i}`);
-    if (stageLed) {
-      const isLit = i < stage;
-      stageLed.material.color.setHex(isLit ? 0x10b981 : 0x18181b);
-      stageLed.material.emissive.setHex(isLit ? 0x10b981 : 0x000000);
-    }
-  }
-
-  const displayMesh = group.getObjectByName('mem_display_mesh');
-  if (displayMesh) {
-    const tex = createTextTexture(String(displayDigit), '#080a08', '#f0b429', 42);
-    displayMesh.material.map = tex;
-    displayMesh.material.needsUpdate = true;
-  }
-
-  labels.forEach((label, idx) => {
-    const btnMesh = group.getObjectByName(`mem_btn_mesh_${idx + 1}`);
-    if (btnMesh) {
-      const tex = createTextTexture(String(label), '#1f2937', '#f9fafb', 32);
-      btnMesh.material.map = tex;
-      btnMesh.material.needsUpdate = true;
-      btnMesh.userData.label = label;
-    }
-  });
-}
-
-function assembleMemoryModule(mod, posX = 0, posY = -0.75, moduleIndex = 0) {
-  const group = new THREE.Group();
-  group.position.set(posX, posY, 0.7);
-
-  const plate = new THREE.Mesh(
-    new THREE.BoxGeometry(2.1, 1.35, 0.05),
-    new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.8 })
-  );
-  group.add(plate);
-
-  addStatusLED(group, 0.85, 0.5, 'memory', moduleIndex);
-
-  for (let i = 1; i <= 5; i++) {
-    const sLedGeom = new THREE.BoxGeometry(0.1, 0.08, 0.04);
-    const sLedMat = new THREE.MeshStandardMaterial({ color: i < mod.stage ? 0x10b981 : 0x18181b, emissive: i < mod.stage ? 0x10b981 : 0x000000 });
-    const sLed = new THREE.Mesh(sLedGeom, sLedMat);
-    sLed.name = `mem_stage_led_${i}`;
-    sLed.position.set(-0.75 + (i * 0.18), 0.5, 0.04);
-    group.add(sLed);
-  }
-
-  const dispTex = createTextTexture(String(mod.displayDigit || '1'), '#080a08', '#f0b429', 42);
-  const dispGeom = new THREE.PlaneGeometry(0.65, 0.45);
-  const dispMat = new THREE.MeshStandardMaterial({ map: dispTex, roughness: 0.3 });
-  const dispMesh = new THREE.Mesh(dispGeom, dispMat);
-  dispMesh.name = 'mem_display_mesh';
-  dispMesh.position.set(-0.4, 0.1, 0.04);
-  group.add(dispMesh);
-
-  const buttonGridX = [-0.6, -0.2, 0.2, 0.6];
-  const initialLabels = mod.labels || [1, 2, 3, 4];
-
-  initialLabels.forEach((label, idx) => {
-    const x = buttonGridX[idx];
-    const btnGeom = new THREE.BoxGeometry(0.35, 0.35, 0.06);
-    const btnTex = createTextTexture(String(label), '#1f2937', '#f9fafb', 32);
-    const btnMesh = new THREE.Mesh(btnGeom, new THREE.MeshStandardMaterial({ map: btnTex }));
-    btnMesh.name = `mem_btn_mesh_${idx + 1}`;
-    btnMesh.position.set(x, -0.32, 0.04);
-    btnMesh.userData = {
-      isMemoryButton: true,
-      buttonPos: idx + 1,
-      label,
-      moduleIndex,
-      parentGroup: group
-    };
-    group.add(btnMesh);
-    interactiveObjects.push(btnMesh);
-  });
-
-  memoryState[moduleIndex] = {
-    group,
-    stage: mod.stage || 1,
-    displayDigit: mod.displayDigit || 1,
-    labels: initialLabels
-  };
-
-  bombGroup.add(group);
-}
-
 // ----------------------------------------------------
 // RAYCASTING & INTERACTION LOGIC
 // ----------------------------------------------------
@@ -1773,41 +1254,6 @@ function onPointerDown(e) {
         moduleIndex: hitObject.userData.moduleIndex,
         color: hitObject.userData.color
       });
-    }
-
-    // 5. Morse Code TX- / TX+ / SUBMIT click
-    else if (hitObject.userData.isMorseTxMinus) {
-      playSound(sndClick, 'click');
-      const modIdx = hitObject.userData.moduleIndex;
-      const state = morseState[modIdx] || { freqIdx: 0 };
-      state.freqIdx = (state.freqIdx - 1 + VALID_MORSE_FREQS.length) % VALID_MORSE_FREQS.length;
-      updateMorseLcdMesh(hitObject.userData.parentGroup, VALID_MORSE_FREQS[state.freqIdx]);
-    }
-    else if (hitObject.userData.isMorseTxPlus) {
-      playSound(sndClick, 'click');
-      const modIdx = hitObject.userData.moduleIndex;
-      const state = morseState[modIdx] || { freqIdx: 0 };
-      state.freqIdx = (state.freqIdx + 1) % VALID_MORSE_FREQS.length;
-      updateMorseLcdMesh(hitObject.userData.parentGroup, VALID_MORSE_FREQS[state.freqIdx]);
-    }
-    else if (hitObject.userData.isMorseSubmit) {
-      playSound(sndClick, 'click');
-      const modIdx = hitObject.userData.moduleIndex;
-      const state = morseState[modIdx] || { freqIdx: 0 };
-      const freq = VALID_MORSE_FREQS[state.freqIdx];
-      socket.emit('submit-morse', { moduleIndex: modIdx, frequency: freq });
-    }
-
-    // 6. Memory Button click
-    else if (hitObject.userData.isMemoryButton) {
-      playSound(sndClick, 'click');
-      const modIdx = hitObject.userData.moduleIndex;
-      const pos = hitObject.userData.buttonPos;
-      
-      hitObject.position.z = 0.02;
-      setTimeout(() => { hitObject.position.z = 0.04; }, 100);
-
-      socket.emit('press-memory', { moduleIndex: modIdx, buttonPos: pos });
     }
   }
 }
