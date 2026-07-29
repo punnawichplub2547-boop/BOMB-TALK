@@ -3,6 +3,8 @@ services:
     name: keep-talking-3d
     env: node
     plan: free
+    branch: master
+    autoDeploy: true
     buildCommand: npm install
     startCommand: npm start
     envVars:
