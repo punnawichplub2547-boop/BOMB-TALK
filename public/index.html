@@ -29,8 +29,10 @@
         <div class="term-bar">
           <div class="term-dots"><span></span><span></span><span></span></div>
           <span class="term-path">defusal-ops // secure channel</span>
-          <button id="btn-sound-toggle" class="btn-sound-toggle" type="button">[ 🔊 AUDIO: ON ]</button>
-          <span class="term-status">ONLINE</span>
+          <div class="term-right">
+            <button id="btn-sound-toggle" class="btn-sound-toggle" type="button">[ 🔊 AUDIO: ON ]</button>
+            <span class="term-status">ONLINE</span>
+          </div>
         </div>
 
         <!-- STEP 1: ENTRY -->
@@ -45,16 +47,13 @@
               <div class="entry-col">
                 <label for="username">CALLSIGN&gt;</label>
                 <input type="text" id="username" placeholder="OPERATOR_A" autocomplete="off" maxlength="14">
+                <button id="btn-create-room" class="btn primary">[ CREATE ROOM ]</button>
               </div>
               <div class="entry-col">
                 <label for="room-code">JOIN CODE&gt;</label>
                 <input type="text" id="room-code" placeholder="----" autocomplete="off" maxlength="4">
+                <button id="btn-join-room" class="btn secondary">[ JOIN ROOM ]</button>
               </div>
-            </div>
-
-            <div class="action-grid">
-              <button id="btn-create-room" class="btn primary">[ CREATE ROOM ]</button>
-              <button id="btn-join-room" class="btn secondary">[ JOIN ROOM ]</button>
             </div>
 
             <div class="terminal-footer">

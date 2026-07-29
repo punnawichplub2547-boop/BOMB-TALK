@@ -164,8 +164,14 @@ a:hover { color: var(--amber-hi); }
   color: var(--amber);
 }
 
-.term-status {
+.term-right {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.term-status {
   font-family: var(--mono);
   font-size: 12px;
   letter-spacing: 2px;
